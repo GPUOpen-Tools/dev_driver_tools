@@ -1,0 +1,3 @@
+# Add your custom keyboard device in this file. If there is more than 1 device listed, the first valid one will be used.
+
+/dev/input/by-path/platform-i8042-serio-0-event-kbd

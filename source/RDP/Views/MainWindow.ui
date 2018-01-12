@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>850</width>
+    <height>700</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>850</width>
+    <height>600</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Radeon Developer Panel</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">QStatusBar {
+	background: rgb(0, 80, 140);
+	color: white;
+}</string>
+  </property>
+  <widget class="QWidget" name="centralWidget">
+   <property name="styleSheet">
+    <string notr="true">QTabWidget::pane {
+	border : 0px  solid #444;
+	background: solid white;
+}
+
+#mainTabWidget &gt; QTabWidget::pane {
+	border-top: 0px solid #444;
+	border-bottom: 0px solid #444;
+}
+
+#mainTabWidget &gt; QTabBar::tab {
+	background: rgb(51,51,51);
+	color: #666;
+	font: bold 14px;
+	width: 130px;
+	height: 35px;
+	bottom: 0px;
+}
+
+#mainTabWidget &gt; QTabBar::tab:top {
+	margin: 0px 0px 0 0;
+	padding: 4px 8px;
+	border-bottom: 4px solid transparent;
+}
+
+#mainTabWidget &gt; QTabBar::tab:selected {
+	color: white;
+}
+
+#mainTabWidget &gt; QTabBar::tab:top:hover {
+	border-bottom: 4px solid rgb(135,20,16);
+}
+
+#mainTabWidget &gt; QTabBar::tab:top:selected {
+	border-bottom: 4px solid rgb(224,30,55);
+}
+
+#mainTabWidget &gt; QTabBar::tab:!selected:hover {
+	color: #999;
+}
+
+
+/*Application wide common stylings*/
+QPushButton
+{
+	padding: 4px;
+	min-width: 75px;
+	margin: 0px;
+}
+
+QToolButton
+{
+	padding: 4px;
+	min-width: 30px;
+}
+
+QLineEdit
+{
+	margin-top: 1px;
+	margin-bottom: 1px;
+	padding-left: 3px;
+}
+
+QSpinBox, QDoubleSpinBox, QComboBox
+{
+	padding-left: 3px;
+}
+
+QCheckBox::indicator
+{
+    width: 30px;
+    height: 15px;
+}
+
+QCheckBox::indicator:checked
+{
+    image: url(:/images/checkbox_on_70x37.png);
+}
+QCheckBox::indicator:unchecked
+{
+    image: url(:/images/checkbox_off_70x37.png);
+}
+</string>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <property name="spacing">
+     <number>0</number>
+    </property>
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+    <item>
+     <widget class="ToolbarTabWidget" name="mainTabWidget">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="styleSheet">
+       <string notr="true"/>
+      </property>
+      <property name="currentIndex">
+       <number>2</number>
+      </property>
+      <property name="usesScrollButtons">
+       <bool>false</bool>
+      </property>
+      <widget class="QWidget" name="connectionTab">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <attribute name="title">
+        <string>CONNECTION</string>
+       </attribute>
+       <layout class="QHBoxLayout" name="horizontalLayout_1">
+        <property name="spacing">
+         <number>0</number>
+        </property>
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <layout class="QGridLayout" name="connectionTabLayoutGrid">
+          <property name="spacing">
+           <number>0</number>
+          </property>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="settingsTab">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <attribute name="title">
+        <string>SETTINGS</string>
+       </attribute>
+       <layout class="QHBoxLayout" name="horizontalLayout_2">
+        <property name="spacing">
+         <number>0</number>
+        </property>
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <layout class="QGridLayout" name="settingsTabLayoutGrid">
+          <property name="spacing">
+           <number>0</number>
+          </property>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="clocksTab">
+       <attribute name="title">
+        <string>CLOCKS</string>
+       </attribute>
+       <layout class="QGridLayout" name="gridLayout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <property name="spacing">
+         <number>0</number>
+        </property>
+        <item row="0" column="0">
+         <layout class="QGridLayout" name="clocksTabLayoutGrid">
+          <property name="spacing">
+           <number>0</number>
+          </property>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="profilingTab">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">QTabBar::tab
+{
+	font:  bold 12px;
+	height: 35px;
+	border: 1px solid #C4C4C3;
+	width: 200px;
+}
+
+QTabWidget::pane
+{
+	border-top: 1px solid #C2C7CB;
+	bottom: 10px;
+	border-right: none;
+	top: -1px;
+}
+
+QTabBar::tab:selected
+{
+	background-color: white;
+	border: 1px solid #C4C4C3;
+	border-bottom: 1px solid white;
+	margin-left: -1px;
+}
+
+QTabBar::tab:!selected
+{
+	background-color: rgb(236, 236, 236);
+	border-right: 1px solid #C4C4C3;
+	border-left: 1px solid #C4C4C3;
+	border-bottom: 1px solid #C4C4C3;
+	margin-left: -1px;
+}
+
+QTabBar::tab:!selected:hover {
+	background-color: rgb(237, 246, 255);
+}
+
+QTabBar::tab:last
+{
+	width: 26px;
+	height: 30px;
+	background-color: #333333;
+	border: none;
+	border-left: 1px solid #C4C4C3;
+}</string>
+       </property>
+       <attribute name="title">
+        <string>PROFILING</string>
+       </attribute>
+       <layout class="QHBoxLayout" name="horizontalLayout_3">
+        <property name="spacing">
+         <number>0</number>
+        </property>
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <layout class="QGridLayout" name="protocolsTabLayoutGrid">
+          <property name="spacing">
+           <number>0</number>
+          </property>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="logTab">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <attribute name="title">
+        <string>LOG</string>
+       </attribute>
+       <layout class="QHBoxLayout" name="horizontalLayout_5">
+        <property name="spacing">
+         <number>0</number>
+        </property>
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <layout class="QGridLayout" name="logTabLayoutGrid">
+          <property name="spacing">
+           <number>0</number>
+          </property>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ToolbarTabWidget</class>
+   <extends>QTabWidget</extends>
+   <header>../../Common/ToolbarTabWidget.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
