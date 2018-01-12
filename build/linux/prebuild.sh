@@ -1,9 +1,10 @@
 #!/bin/bash
 
+# Identify the version of QT to be used - define qtVersion and qtDir variables
+. $(dirname "$0")/findqt.sh
+
 # Build the Debug and Release makefiles
 
-qtVersion="5.9.2"
-qtDir="$HOME/Qt$qtVersion/$qtVersion/gcc_64"
 for config in Debug Release ; do
     # create the output folder if it doesn't exist
     dir="output/$config"
@@ -12,12 +13,7 @@ for config in Debug Release ; do
     fi
     pushd $dir
     rm -rf *
-    if [[ `uname` == "Darwin" ]]; then
-        # MacOSX
-        cmake ../../../.. -DCMAKE_BUILD_TYPE=$config -DCMAKE_PREFIX_PATH=~/Qt5.7.1/5.7/clang_64/lib/cmake/
-    else
-        cmake ../../../.. -DCMAKE_BUILD_TYPE=$config -DCMAKE_PREFIX_PATH="$qtDir/lib/cmake/"
-    fi
+    cmake ../../../.. -DCMAKE_BUILD_TYPE=$config -DCMAKE_PREFIX_PATH="$qtDir/lib/cmake/"
     popd
 
     # copy the help files
