@@ -3,11 +3,10 @@
         <file>../../images/RDP_Icon.png</file>
         <file>../../images/GreenIndicator.png</file>
         <file>../../images/RedIndicator.png</file>
-        <file>../../images/ArrowDownWhite.svg</file>
-        <file>../../images/ArrowDownGray.svg</file>
-        <file>../../images/ArrowDownBlack.svg</file>
-        <file>../../images/ArrowUpGray.svg</file>
-        <file>../../images/ArrowUpBlack.svg</file>
+        <file>../../images/PullDownOff_Gray.svg</file>
+        <file>../../images/PullDownOff_Black.svg</file>
+        <file>../../images/PullDownOn_Gray.svg</file>
+        <file>../../images/PullDownOn_Black.svg</file>
         <file>../../images/EmptyDriverSettingsImage.png</file>
         <file>../../images/Computer.png</file>
         <file>../../images/RDS_Icon.png</file>
@@ -23,7 +22,7 @@
         <file>../../images/ProfilingClockOn.png</file>
         <file>../../images/ProfilingClockOff.png</file>
         <file>../../images/ProfilingClockHover.png</file>
-        <file>../../images/AlertIcon.svg</file>
+        <file>../../images/third_party/ionicons/alert-circled.svg</file>
         <file>../../images/PeakClockHover.png</file>
         <file>../../images/PeakClockOff.png</file>
         <file>../../images/PeakClockOn.png</file>

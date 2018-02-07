@@ -179,10 +179,19 @@ namespace DevDriver
         {
             m_pendingOperationEvent.Clear();
             m_pSession->CloseSession(Result::Success);
+            int retries = 20;
             while (!m_pSession.IsNull())
             {
                 // todo - implement more robust timeout system
                 m_pendingOperationEvent.Wait(kDefaultRetryTimeoutInMs);
+                --retries;
+                if (retries < 1)
+                {
+                    // A reference to the session object is not being released and blocking the shutdown process.
+                    // Mark the session as being orphaned.
+                    // See comments in BaseProtocolClient::Orphan() for more details.
+                    Orphan();
+                }
             }
         }
     }

@@ -33,12 +33,18 @@ for config in Debug Release ; do
 
     cp -rf ../../qt.conf .
 
+    # make the RGP_API directories
+    mkdir -p RGP_API
+    mkdir -p RGP_API/include
+    mkdir -p RGP_API/lib
+    cp -rf ../../../source/RGP_API/RGP_API.h RGP_API/include
+
     # copy Qt runtime (not on mac for now)
     if [[ `uname` != "Darwin" ]]; then
-        mkdir qt
+        mkdir -p qt
         cd qt
-        mkdir lib
-        mkdir plugins
+        mkdir -p lib
+        mkdir -p plugins
         cp -rf $qtDir/lib/libicudata.so.56.1 lib/libicudata.so.56
         cp -rf $qtDir/lib/libicui18n.so.56.1 lib/libicui18n.so.56
         cp -rf $qtDir/lib/libicuuc.so.56.1 lib/libicuuc.so.56
@@ -50,11 +56,11 @@ for config in Debug Release ; do
         cp -rf $qtDir/lib/libQt5Svg.so.$qtVersion lib/libQt5Svg.so.5
 
         cd plugins
-        mkdir platforms
+        mkdir -p platforms
         cp -rf $qtDir/plugins/platforms/libqxcb.so platforms
-        mkdir iconengines
+        mkdir -p iconengines
         cp -rf $qtDir/plugins/iconengines/libqsvgicon.so iconengines
-        mkdir imageformats
+        mkdir -p imageformats
         cp -rf $qtDir/plugins/imageformats/libqsvg.so imageformats
     fi
     popd

@@ -24,10 +24,10 @@ using namespace DevDriver::SettingsProtocol;
 // Stylesheet for the show full description button
 const static QString s_SHOW_DESCRIPTION_CHECKBOX_STYLESHEET(
     "QCheckBox::indicator { width: 12px; height: 12px; }"
-    "QCheckBox::indicator:checked { image: url(:/images/ArrowUpGray.svg); }"
-    "QCheckBox::indicator:unchecked { image: url(:/images/ArrowDownGray.svg); }"
-    "QCheckBox::indicator:checked:hover { image: url(:/images/ArrowUpBlack.svg); }"
-    "QCheckBox::indicator:unchecked:hover { image: url(:/images/ArrowDownBlack.svg); }"
+    "QCheckBox::indicator:checked { image: url(:/images/PullDownOn_Gray.svg); }"
+    "QCheckBox::indicator:unchecked { image: url(:/images/PullDownOff_Gray.svg); }"
+    "QCheckBox::indicator:checked:hover { image: url(:/images/PullDownOn_Black.svg); }"
+    "QCheckBox::indicator:unchecked:hover { image: url(:/images/PullDownOff_Black.svg); }"
 );
 
 // Stylesheet for the restore default setting button

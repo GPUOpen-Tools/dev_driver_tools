@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Generator: IcoMoon.io -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="512"
+   height="512"
+   viewBox="0 0 512 512"
+   fill="#000000"
+   version="1.1"
+   id="svg4487"
+   sodipodi:docname="ArrowDownBlack.svg"
+   inkscape:version="0.92.0 r15299">
+  <metadata
+     id="metadata4493">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs
+     id="defs4491" />
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="1993"
+     inkscape:window-height="1374"
+     id="namedview4489"
+     showgrid="false"
+     inkscape:zoom="1.9892198"
+     inkscape:cx="349.09545"
+     inkscape:cy="227.54873"
+     inkscape:window-x="159"
+     inkscape:window-y="484"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg4487" />
+  <path
+     style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:9.41210651;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke markers fill"
+     d="M -2.76795e-4,176.00025 159.9992,335.99975 256,432.00054 352.00079,335.99975 512.00028,176.00027 415.99948,79.999465 256,239.99894 96.000515,79.999465 Z"
+     id="rect4495"
+     inkscape:connector-curvature="0" />
+</svg>

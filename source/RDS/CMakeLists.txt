@@ -6,6 +6,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
+# policy to not link executables to qtmain.lib on windows
 if(POLICY CMP0020)
   cmake_policy(SET CMP0020 OLD)
 endif()

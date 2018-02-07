@@ -34,6 +34,19 @@
 #include <protocols/ddURIService.h>
 #include <protocols/ddGpuCrashDumpServer.h>
 
+#ifdef _LINUX
+int sprintf_s(char* _DstBuf, size_t _SizeInBytes, const char* _Format, ...)
+{
+    int retVal;
+    va_list arg_ptr;
+
+    va_start(arg_ptr, _Format);
+    retVal = vsnprintf(_DstBuf, _SizeInBytes, _Format, arg_ptr);
+    va_end(arg_ptr);
+    return retVal;
+}
+#endif
+
 void* GenericAlloc(void* pUserdata, size_t size, size_t alignment, bool zero)
 {
     DD_UNUSED(pUserdata);
@@ -57,10 +70,44 @@ DevDriver::AllocCb GenericAllocCb =
 
 void DbgMsg(const std::string& strMsg)
 {
+#ifdef _DEBUG
     std::cout << strMsg << std::endl;
     char buf[1024];
-    sprintf_s(buf, "%s\n", strMsg.c_str());
+    sprintf_s(buf, 1024, "%s\n", strMsg.c_str());
+#ifdef _LINUX
+    printf(buf);
+#else
     OutputDebugStringA(buf);
+#endif
+#endif // def _DEBUG
+}
+
+// Worker thread states
+enum WorkerThreadState
+{
+    STATE_INIT,
+    STATE_CAPTURING,
+    STATE_IDLE,
+    STATE_FINISHED,
+    STATE_DONE,
+};
+
+// The global worker thread state
+static std::atomic<WorkerThreadState> g_workerState(STATE_INIT);
+
+// The global worker thread mutex
+static std::mutex g_workerThreadMutex;
+
+RGPClientInProcessModel::RGPClientInProcessModel() :
+    m_pClient(nullptr),
+    m_profileCaptured(false),
+    m_finished(false)
+{
+}
+
+RGPClientInProcessModel::~RGPClientInProcessModel()
+{
+    Finish();
 }
 
 bool RGPClientInProcessModel::Init()
@@ -73,18 +120,23 @@ bool RGPClientInProcessModel::Init()
 
 void RGPClientInProcessModel::Finish()
 {
-    DeInitDriverProtocols();
-}
-
-RGPClientInProcessModel::RGPClientInProcessModel() :
-    m_pClient(nullptr),
-    m_bProfileCaptured(false)
-{
-}
-
-RGPClientInProcessModel::~RGPClientInProcessModel()
-{
-    Finish();
+    if (m_finished == false)
+    {
+        g_workerThreadMutex.lock();
+        while (g_workerState != STATE_DONE)
+        {
+            g_workerThreadMutex.unlock();
+            DevDriver::Platform::Sleep(10);
+            g_workerThreadMutex.lock();
+            if (g_workerState == STATE_IDLE)
+            {
+                g_workerState = STATE_FINISHED;
+            }
+        }
+        g_workerThreadMutex.unlock();
+        DeInitDriverProtocols();
+        m_finished = true;
+    }
 }
 
 bool RGPClientInProcessModel::InitDriverProtocols()
@@ -169,7 +221,7 @@ void RGPClientInProcessModel::DeInitDriverProtocols()
 /// panel does things.
 /// \param profileName A string to accept the generated profile name string
 //-----------------------------------------------------------------------------
-void RGPClientInProcessModel::GetProfileName(std::string& profileName)
+void RGPClientInProcessModel::GenerateProfileName(std::string& profileName)
 {
     char processName[1024];
     DevDriver::Platform::GetProcessName(&processName[0], sizeof(processName));
@@ -199,7 +251,7 @@ void RGPClientInProcessModel::GetProfileName(std::string& profileName)
 /// Set the GPU clock mode to be used when collecting an RGP trace.
 /// \returns Result::Success if the clock mode was set correctly, and an error code if it failed.
 //-----------------------------------------------------------------------------
-DevDriver::Result SetGPUClockMode(
+DevDriver::Result RGPClientInProcessModel::SetGPUClockMode(
     DevDriver::DriverControlProtocol::DriverControlClient* pDriverControlClient,
     DevDriver::DriverControlProtocol::DeviceClockMode      kTraceClockMode)
 {
@@ -248,8 +300,7 @@ void RGPChunkFunc(const DevDriver::RGPProtocol::TraceDataChunk* pChunk, void* pU
     pTraceContext->totalTraceSizeInBytes += pChunk->dataSize;
 }
 
-bool CollectRgpTrace(
-    RGPClientInProcessModel*                               pContext,
+bool RGPClientInProcessModel::CollectRgpTrace(
     DevDriver::RGPProtocol::RGPClient*                     pRgpClient,
     DevDriver::DriverControlProtocol::DriverControlClient* pDriverControlClient)
 {
@@ -291,9 +342,11 @@ bool CollectRgpTrace(
         if (requestResult == Result::Success || requestResult == Result::Unavailable) 
         {
             // Only try to write the trace file if the trace executed correctly.
-            std::string profileName;
-            pContext->GetProfileName(profileName);
-            rgpFile.open(profileName.c_str(), std::ios::out | std::ios::binary);
+            if (m_profileName.empty())
+            {
+                GenerateProfileName(m_profileName);
+            }
+            rgpFile.open(m_profileName.c_str(), std::ios::out | std::ios::binary);
 
             // Read chunks until we hit the end of the stream.
             do
@@ -312,7 +365,7 @@ bool CollectRgpTrace(
                     rgpFile.close();
                 }
                 DbgMsg("RGP trace file captured.");
-                pContext->SetProfileCaptured(true);
+                SetProfileCaptured(true);
             }
         }
 
@@ -336,7 +389,7 @@ bool CollectRgpTrace(
     }
 }
 
-bool ConnectProtocolClients(
+bool RGPClientInProcessModel::ConnectProtocolClients(
     DevDriver::DevDriverClient*                             pClient,
     DevDriver::ClientId                                     clientId,
     DevDriver::RGPProtocol::RGPClient*&                     pRgpClientOut,
@@ -395,7 +448,7 @@ bool ConnectProtocolClients(
     return bReturn;
 }
 
-void DisconnectProtocolClients(
+void RGPClientInProcessModel::DisconnectProtocolClients(
     DevDriver::DevDriverClient*                            pClient,
     DevDriver::RGPProtocol::RGPClient*                     pRgpClient,
     DevDriver::DriverControlProtocol::DriverControlClient* pDriverControlClient)
@@ -418,7 +471,7 @@ void DisconnectProtocolClients(
     }
 }
 
-bool EnableRgpProfiling(DevDriver::RGPProtocol::RGPClient* pRgpClient)
+bool RGPClientInProcessModel::EnableRgpProfiling(DevDriver::RGPProtocol::RGPClient* pRgpClient)
 {
     using namespace DevDriver;
     using namespace RGPProtocol;
@@ -458,7 +511,7 @@ bool EnableRgpProfiling(DevDriver::RGPProtocol::RGPClient* pRgpClient)
     }
 }
 
-bool ResumeDriverAndWaitForDriverInitilization(DevDriver::DriverControlProtocol::DriverControlClient* pDriverControlClient)
+bool RGPClientInProcessModel::ResumeDriverAndWaitForDriverInitilization(DevDriver::DriverControlProtocol::DriverControlClient* pDriverControlClient)
 {
     using namespace DevDriver;
     bool bReturn = true;
@@ -495,20 +548,29 @@ bool ResumeDriverAndWaitForDriverInitilization(DevDriver::DriverControlProtocol:
         bReturn = false;
     }
 
-    return true;
+    return bReturn;
 }
 
-void ProcessHaltedMessage(RGPClientInProcessModel* pContext, DevDriver::DevDriverClient* pClient, DevDriver::ClientId clientId)
+bool ProcessHaltedMessage(RGPClientInProcessModel* pContext, DevDriver::ClientId clientId)
 {
-    if (pClient->IsConnected())
+    return pContext->ProcessHaltedMessage(clientId);
+}
+
+bool RGPClientInProcessModel::ProcessHaltedMessage(DevDriver::ClientId clientId)
+{
+    if (m_pClient->IsConnected())
     {
+        bool resumed = false;
+
         using namespace DevDriver;
         using namespace RGPProtocol;
         using namespace DriverControlProtocol;
 
-        RGPClient*           pRgpClient           = nullptr;
-        DriverControlClient* pDriverControlClient = nullptr;
-        ConnectProtocolClients(pClient, clientId, pRgpClient, pDriverControlClient);
+        RGPClient*            pRgpClient = nullptr;
+        DriverControlClient*  pDriverControlClient = nullptr;
+
+        ConnectProtocolClients(m_pClient, clientId, pRgpClient, pDriverControlClient);
+        m_clientId = clientId;
 
         if (pRgpClient != nullptr)
         {
@@ -517,20 +579,45 @@ void ProcessHaltedMessage(RGPClientInProcessModel* pContext, DevDriver::DevDrive
 
         if (pDriverControlClient != nullptr)
         {
-            ResumeDriverAndWaitForDriverInitilization(pDriverControlClient);
+            resumed = ResumeDriverAndWaitForDriverInitilization(pDriverControlClient);
         }
+        DisconnectProtocolClients(m_pClient, pRgpClient, pDriverControlClient);
 
-        if (pRgpClient != nullptr && pDriverControlClient != nullptr)
-        {
-            CollectRgpTrace(pContext, pRgpClient, pDriverControlClient);
-        }
-
-        DisconnectProtocolClients(pClient, pRgpClient, pDriverControlClient);
+        return resumed;
     }
+    return false;
 }
 
-void RGPWorkerThreadFunc(void* pThreadParam)
+//-----------------------------------------------------------------------------
+/// Collect a trace. This function is run in the worker thread to do the
+/// actual frame capture.
+//-----------------------------------------------------------------------------
+void RGPClientInProcessModel::CollectTrace()
 {
+    using namespace DevDriver;
+    using namespace RGPProtocol;
+    using namespace DriverControlProtocol;
+
+    RGPClient*            pRgpClient = nullptr;
+    DriverControlClient*  pDriverControlClient = nullptr;
+
+    ConnectProtocolClients(m_pClient, m_clientId, pRgpClient, pDriverControlClient);
+
+    if (pRgpClient != nullptr && pDriverControlClient != nullptr)
+    {
+        CollectRgpTrace(pRgpClient, pDriverControlClient);
+    }
+
+    DisconnectProtocolClients(m_pClient, pRgpClient, pDriverControlClient);
+}
+
+//-----------------------------------------------------------------------------
+/// Worker thread to wait until the driver halted message has been received
+/// and resume the application
+//-----------------------------------------------------------------------------
+static void WorkerInit(void* pThreadParam)
+{
+    bool result = false;
     using namespace DevDriver;
     RGPWorkerThreadContext*  pThreadContext = reinterpret_cast<RGPWorkerThreadContext*>(pThreadParam);
     RGPClientInProcessModel* pContext = pThreadContext->m_pContext;
@@ -540,7 +627,7 @@ void RGPWorkerThreadFunc(void* pThreadParam)
     IMsgChannel* pMsgChannel = pClient->GetMessageChannel();
     const uint32 kLogDelayInMs = 100;
 
-    while (pMsgChannel->IsConnected() && !pContext->IsProfileCaptured())
+    while (pMsgChannel->IsConnected() && result == false)
     {
         DevDriver::Result status = pMsgChannel->Receive(message, kLogDelayInMs);
         while (status == DevDriver::Result::Success && !pContext->IsProfileCaptured())
@@ -552,7 +639,7 @@ void RGPWorkerThreadFunc(void* pThreadParam)
                 switch (msg)
                 {
                 case SystemMessage::Halted:
-                    ProcessHaltedMessage(pContext, pClient, message.header.srcClientId);
+                    result = ProcessHaltedMessage(pContext, message.header.srcClientId);
                     break;
                 default:
                     break;
@@ -561,6 +648,71 @@ void RGPWorkerThreadFunc(void* pThreadParam)
             status = pMsgChannel->Receive(message, 0);
         }
     }
+    g_workerThreadMutex.lock();
+    g_workerState = STATE_IDLE;
+    g_workerThreadMutex.unlock();
+}
+
+static void WorkerCapture(void* pThreadParam)
+{
+    bool result = false;
+    using namespace DevDriver;
+    RGPWorkerThreadContext*  pThreadContext = reinterpret_cast<RGPWorkerThreadContext*>(pThreadParam);
+    RGPClientInProcessModel* pContext = pThreadContext->m_pContext;
+
+    pContext->CollectTrace();
+    g_workerThreadMutex.lock();
+    g_workerState = STATE_IDLE;
+    g_workerThreadMutex.unlock();
+}
+
+void RGPWorkerThreadFunc(void* pThreadParam)
+{
+    g_workerThreadMutex.lock();
+    WorkerThreadState state = g_workerState;
+    g_workerThreadMutex.unlock();
+
+    while (state != STATE_FINISHED)
+    {
+        switch (state)
+        {
+        case STATE_INIT:
+            WorkerInit(pThreadParam);
+            break;
+
+        case STATE_CAPTURING:
+            WorkerCapture(pThreadParam);
+            break;
+
+        case STATE_IDLE:
+            break;
+        }
+        g_workerThreadMutex.lock();
+        state = g_workerState;
+        g_workerThreadMutex.unlock();
+    }
+    g_workerThreadMutex.lock();
+    g_workerState = STATE_DONE;
+    g_workerThreadMutex.unlock();
+}
+
+bool RGPClientInProcessModel::TriggerCapture(const char* captureFileName)
+{
+    g_workerThreadMutex.lock();
+    if (g_workerState == STATE_IDLE)
+    {
+        g_workerState = STATE_CAPTURING;
+        g_workerThreadMutex.unlock();
+        SetProfileCaptured(false);
+        m_profileName = "";
+        if (captureFileName != nullptr)
+        {
+            m_profileName = captureFileName;
+        }
+        return true;
+    }
+    g_workerThreadMutex.unlock();
+    return false;
 }
 
 bool RGPClientInProcessModel::CreateWorkerThreadToResumeDriverAndCollectRgpTrace()

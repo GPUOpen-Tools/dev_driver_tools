@@ -1,5 +1,10 @@
 cmake_minimum_required (VERSION 2.6)
 
+# policy to allow input directories to not have CMakeLists.txt files
+if(POLICY CMP0014)
+  cmake_policy(SET CMP0014 OLD)
+endif()
+
 # tell cmake to put the final executable in the correct place. Paths will be
 # different on Windows & Linux
 IF (INTERNAL_BUILD)

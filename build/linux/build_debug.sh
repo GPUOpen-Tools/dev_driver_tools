@@ -9,3 +9,4 @@ if [[ `uname` != "Darwin" ]]; then
     chrpath -r '$ORIGIN/qt/lib' Debug/RadeonDeveloperService
 fi
 
+./postbuild.sh Debug
