@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,24 +30,30 @@
 
 #pragma once
 
-#include "protocols/ddURIService.h"
+#include "ddUriInterface.h"
 
 namespace DevDriver
 {
     class IMsgChannel;
 
-    class ClientURIService : public URIProtocol::URIService
+    // String used to identify the client URI service
+    DD_STATIC_CONST char kClientURIServiceName[] = "client";
+
+    class ClientURIService : public IService
     {
     public:
         ClientURIService();
         ~ClientURIService();
+
+        // Returns the name of the service
+        const char* GetName() const override final { return kClientURIServiceName; }
 
         // Binds a message channel to the service
         // All requests will be handled using the currently bound message channel
         void BindMessageChannel(IMsgChannel* pMsgChannel) { m_pMsgChannel = pMsgChannel; }
 
         // Handles an incoming URI request
-        Result HandleRequest(URIProtocol::URIRequestContext* pContext) override;
+        Result HandleRequest(URIRequestContext* pContext) override final;
 
     private:
         // Currently bound message channel

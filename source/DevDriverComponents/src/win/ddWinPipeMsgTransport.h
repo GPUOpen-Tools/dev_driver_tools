@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -47,14 +47,19 @@ namespace DevDriver
     class WinPipeMsgTransport : public IMsgTransport
     {
     public:
-        explicit WinPipeMsgTransport(const TransportCreateInfo& createInfo);
+        explicit WinPipeMsgTransport(const HostInfo& hostInfo);
         ~WinPipeMsgTransport();
 
         Result Connect(ClientId* pClientId, uint32 timeoutInMs) override;
         Result Disconnect() override;
 
-        Result ReadMessage(MessageBuffer &messageBuffer, uint32 timeoutInMs) override;
-        Result WriteMessage(const MessageBuffer &messageBuffer) override;
+        Result ReadMessage(MessageBuffer& messageBuffer, uint32 timeoutInMs) override;
+        Result WriteMessage(const MessageBuffer& messageBuffer) override;
+
+        const char* GetTransportName() const override
+        {
+            return "Named Pipe";
+        }
 
         DD_STATIC_CONST bool RequiresKeepAlive()
         {
@@ -68,10 +73,11 @@ namespace DevDriver
 
 #if !DD_VERSION_SUPPORTS(GPUOPEN_DISTRIBUTED_STATUS_FLAGS_VERSION)
         Result UpdateClientStatus(ClientId clientId, StatusFlags flags) override;
-        static Result QueryStatus(StatusFlags *pFlags, uint32 timeoutInMs);
+        static Result QueryStatus(const HostInfo& hostInfo, uint32 timeoutInMs, StatusFlags* pFlags);
 #endif
-        static Result TestConnection(uint32 timeoutInMs);
+        static Result TestConnection(const HostInfo& hostInfo, uint32 timeoutInMs);
     private:
+        HostInfo        m_hostInfo;
         HANDLE          m_pipeHandle;
 
         struct PendingTransaction

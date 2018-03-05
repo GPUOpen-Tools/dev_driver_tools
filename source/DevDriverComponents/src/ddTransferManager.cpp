@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,29 +23,31 @@
  ******************************************************************************/
 
 #include "ddTransferManager.h"
+#include "protocols/ddTransferServer.h"
 #include "messageChannel.h"
 
 namespace DevDriver
 {
     namespace TransferProtocol
     {
-        // =====================================================================================================================
+        // ============================================================================================================
         TransferManager::TransferManager(const AllocCb& allocCb)
             : m_pMessageChannel(nullptr)
             , m_pSessionManager(nullptr)
             , m_pTransferServer(nullptr)
             , m_allocCb(allocCb)
-            , m_nextBlockId(1) // Block Ids start at 1. 0 is invalid.
-        {
-        }
+            , m_rng()
+            , m_mutex()
+            , m_registeredServerBlocks(allocCb)
+        {}
 
-        // =====================================================================================================================
+        // ============================================================================================================
         TransferManager::~TransferManager()
         {
             Destroy();
         }
 
-        // =====================================================================================================================
+        // ============================================================================================================
         Result TransferManager::Init(IMsgChannel* pMsgChannel, SessionManager* pSessionManager)
         {
             DD_ASSERT(pMsgChannel != nullptr);
@@ -54,7 +56,7 @@ namespace DevDriver
             m_pMessageChannel = pMsgChannel;
             m_pSessionManager = pSessionManager;
 
-            m_pTransferServer = DD_NEW(TransferServer, m_allocCb)(m_pMessageChannel);
+            m_pTransferServer = DD_NEW(TransferServer, m_allocCb)(m_pMessageChannel, this);
             if (m_pTransferServer != nullptr)
             {
                 m_pSessionManager->RegisterProtocolServer(m_pTransferServer);
@@ -63,7 +65,7 @@ namespace DevDriver
             return (m_pTransferServer != nullptr) ? Result::Success : Result::Error;
         }
 
-        // =====================================================================================================================
+        // ============================================================================================================
         void TransferManager::Destroy()
         {
             if (m_pTransferServer != nullptr)
@@ -74,36 +76,57 @@ namespace DevDriver
             }
         }
 
-        // =====================================================================================================================
-        SharedPointer<LocalBlock> TransferManager::AcquireLocalBlock()
+        // ============================================================================================================
+        SharedPointer<ServerBlock> TransferManager::OpenServerBlock()
         {
-            const BlockId blockId = m_nextBlockId;
-            Platform::AtomicIncrement(&m_nextBlockId);
+            Platform::LockGuard<Platform::Mutex> lock(m_mutex);
 
-            // Attempt to allocate a new local block
-            SharedPointer<LocalBlock> pBlock = SharedPointer<LocalBlock>::Create(m_allocCb,
-                                                                                 m_allocCb,
-                                                                                 blockId);
+            BlockId newBlockId = kInvalidBlockId;
+            do
+            {
+                newBlockId = m_rng.Generate();
+            } while ((newBlockId == kInvalidBlockId) && m_registeredServerBlocks.Contains(newBlockId));
+
+            // Attempt to allocate a new server block
+            SharedPointer<ServerBlock> pBlock = SharedPointer<ServerBlock>::Create(m_allocCb,
+                                                                                   m_allocCb,
+                                                                                   newBlockId);
             if (!pBlock.IsNull())
             {
-                m_pTransferServer->RegisterLocalBlock(pBlock);
+                m_registeredServerBlocks.Create(newBlockId, pBlock);
             }
 
             return pBlock;
         }
 
-        // =====================================================================================================================
-        void TransferManager::ReleaseLocalBlock(SharedPointer<LocalBlock>& pBlock)
+        // ============================================================================================================
+        SharedPointer<ServerBlock> TransferManager::GetServerBlock(BlockId serverBlockId)
         {
-            DD_ASSERT(!pBlock.IsNull());
-
-            m_pTransferServer->UnregisterLocalBlock(pBlock);
-
-            // Clear the external shared pointer to the block.
-            pBlock.Clear();
+            SharedPointer<ServerBlock> pBlock = SharedPointer<ServerBlock>();
+            Platform::LockGuard<Platform::Mutex> lock(m_mutex);
+            const auto blockIter = m_registeredServerBlocks.Find(serverBlockId);
+            if (blockIter != m_registeredServerBlocks.End())
+            {
+                pBlock = blockIter->value;
+            }
+            return pBlock;
         }
 
-        // =====================================================================================================================
+        // ============================================================================================================
+        void TransferManager::CloseServerBlock(SharedPointer<ServerBlock>& pBlock)
+        {
+            if (!pBlock.IsNull())
+            {
+                Platform::LockGuard<Platform::Mutex> lock(m_mutex);
+
+                m_registeredServerBlocks.Erase(pBlock->GetBlockId());
+
+                // Clear the external shared pointer to the block.
+                pBlock.Clear();
+            }
+        }
+
+        // ============================================================================================================
         PullBlock* TransferManager::OpenPullBlock(ClientId clientId, BlockId blockId)
         {
             PullBlock* pBlock = DD_NEW(PullBlock, m_allocCb)(m_pMessageChannel, blockId);
@@ -113,7 +136,7 @@ namespace DevDriver
                 Result result = pBlock->m_transferClient.Connect(clientId);
                 if (result == Result::Success)
                 {
-                    result = pBlock->m_transferClient.RequestTransfer(blockId, &pBlock->m_blockDataSize);
+                    result = pBlock->m_transferClient.RequestPullTransfer(blockId, &pBlock->m_blockDataSize);
                 }
 
                 // If we fail the transfer or connection, destroy the block.
@@ -127,7 +150,7 @@ namespace DevDriver
             return pBlock;
         }
 
-        // =====================================================================================================================
+        // ============================================================================================================
         void TransferManager::ClosePullBlock(PullBlock** ppBlock)
         {
             DD_ASSERT(ppBlock != nullptr);
@@ -136,8 +159,8 @@ namespace DevDriver
             if (transferClient.IsTransferInProgress())
             {
                 // Attempt to abort the transfer if there's currently one in progress.
-                const Result result = transferClient.AbortTransfer();
-                DD_ASSERT(result == Result::Success);
+                const Result result = transferClient.AbortPullTransfer();
+                DD_UNUSED(result);
             }
 
             transferClient.Disconnect();
@@ -145,8 +168,51 @@ namespace DevDriver
             *ppBlock = nullptr;
         }
 
-        // =====================================================================================================================
-        void LocalBlock::Write(const uint8* pSrcBuffer, size_t numBytes)
+        // ============================================================================================================
+        PushBlock* TransferManager::OpenPushBlock(ClientId clientId, BlockId blockId, size_t blockSize)
+        {
+            PushBlock* pBlock = DD_NEW(PushBlock, m_allocCb)(m_pMessageChannel, blockId);
+            if (pBlock != nullptr)
+            {
+                // Connect to the remote client and request a transfer.
+                Result result = pBlock->m_transferClient.Connect(clientId);
+                if (result == Result::Success)
+                {
+                    result = pBlock->m_transferClient.RequestPushTransfer(blockId, blockSize);
+                }
+
+                // If we fail the transfer or connection, destroy the block.
+                if (result != Result::Success)
+                {
+                    pBlock->m_transferClient.Disconnect();
+                    DD_DELETE(pBlock, m_allocCb);
+                    pBlock = nullptr;
+                }
+            }
+            return pBlock;
+        }
+
+        // ============================================================================================================
+        void TransferManager::ClosePushBlock(PushBlock** ppBlock)
+        {
+            DD_ASSERT(ppBlock != nullptr);
+
+            TransferProtocol::TransferClient& transferClient = (*ppBlock)->m_transferClient;
+            if (transferClient.IsTransferInProgress())
+            {
+                // Attempt to abort the transfer if there's currently one in progress.
+                const Result result = transferClient.ClosePushTransfer(true);
+                DD_ASSERT(result == Result::Aborted);
+                DD_UNUSED(result);
+            }
+
+            transferClient.Disconnect();
+            DD_DELETE((*ppBlock), m_allocCb);
+            *ppBlock = nullptr;
+        }
+
+        // ============================================================================================================
+        void ServerBlock::Write(const uint8* pSrcBuffer, size_t numBytes)
         {
             // Writes can only be performed on blocks that are not closed.
             DD_ASSERT(m_isClosed == false);
@@ -169,27 +235,38 @@ namespace DevDriver
                 // Copy the new data into the block
                 uint8* pData = (reinterpret_cast<uint8*>(m_chunks.Data()) + m_blockDataSize);
                 memcpy(pData, pSrcBuffer, numBytes);
+                m_crc32 = CRC32(pData, numBytes, m_crc32);
                 m_blockDataSize += numBytes;
             }
         }
 
-        // =====================================================================================================================
-        void LocalBlock::Close()
+        // ============================================================================================================
+        void ServerBlock::Close()
         {
             DD_ASSERT(m_isClosed == false);
 
             m_isClosed = true;
         }
 
-        // =====================================================================================================================
-        void LocalBlock::Reset()
+        // ============================================================================================================
+        void ServerBlock::Reset()
         {
             m_isClosed = false;
             m_blockDataSize = 0;
+            m_crc32 = 0;
         }
 
-        // =====================================================================================================================
-        void LocalBlock::BeginTransfer()
+        // ============================================================================================================
+        void ServerBlock::Reserve(size_t bytes)
+        {
+            if (!m_isClosed)
+            {
+                m_chunks.Reserve(Platform::Pow2Align(bytes, kTransferChunkSizeInBytes) / kTransferChunkSizeInBytes);
+            }
+        }
+
+        // ============================================================================================================
+        void ServerBlock::BeginTransfer()
         {
             m_pendingTransfersMutex.Lock();
 
@@ -205,8 +282,8 @@ namespace DevDriver
             m_pendingTransfersMutex.Unlock();
         }
 
-        // =====================================================================================================================
-        void LocalBlock::EndTransfer()
+        // ============================================================================================================
+        void ServerBlock::EndTransfer()
         {
             m_pendingTransfersMutex.Lock();
 
@@ -225,16 +302,34 @@ namespace DevDriver
             m_pendingTransfersMutex.Unlock();
         }
 
-        // =====================================================================================================================
-        Result LocalBlock::WaitForPendingTransfers(uint32 timeoutInMs)
+        // ============================================================================================================
+        Result ServerBlock::WaitForPendingTransfers(uint32 timeoutInMs)
         {
             return m_transfersCompletedEvent.Wait(timeoutInMs);
         }
 
-        // =====================================================================================================================
+        // ============================================================================================================
         Result PullBlock::Read(uint8* pDstBuffer, size_t bufferSize, size_t* pBytesRead)
         {
-            return m_transferClient.ReadTransferData(pDstBuffer, bufferSize, pBytesRead);
+            return m_transferClient.ReadPullTransferData(pDstBuffer, bufferSize, pBytesRead);
+        }
+
+        // ============================================================================================================
+        Result PushBlock::Write(const uint8* pDstBuffer, size_t bufferSize)
+        {
+            return m_transferClient.WritePushTransferData(pDstBuffer, bufferSize);
+        }
+
+        // ============================================================================================================
+        Result PushBlock::Finalize()
+        {
+            return m_transferClient.ClosePushTransfer(false);
+        }
+
+        // ============================================================================================================
+        Result PushBlock::Discard()
+        {
+            return m_transferClient.ClosePushTransfer(true);
         }
     } // TransferProtocol
 } // DevDriver

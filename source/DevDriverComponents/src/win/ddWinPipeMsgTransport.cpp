@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -76,13 +76,12 @@ namespace DevDriver
         return result;
     }
 
-    WinPipeMsgTransport::WinPipeMsgTransport(const TransportCreateInfo& createInfo) :
+    WinPipeMsgTransport::WinPipeMsgTransport(const HostInfo& hostInfo) :
+        m_hostInfo(hostInfo),
         m_pipeHandle(INVALID_HANDLE_VALUE),
-        m_writeTransaction(),
-        m_readTransaction()
-    {
-        DD_UNUSED(createInfo);
-    }
+        m_readTransaction(),
+        m_writeTransaction()
+    {}
 
     WinPipeMsgTransport::~WinPipeMsgTransport()
     {
@@ -99,17 +98,15 @@ namespace DevDriver
 
         Result result = Result::Error;
 
-        if (m_pipeHandle == INVALID_HANDLE_VALUE && WaitNamedPipe(kNamedPipeName, timeoutInMs))
+        if (m_pipeHandle == INVALID_HANDLE_VALUE && WaitNamedPipe(m_hostInfo.hostname, timeoutInMs))
         {
-            m_pipeHandle = CreateFileA(
-                kNamedPipeName,   // pipe name
-                GENERIC_READ |  // read and write access
-                GENERIC_WRITE,
-                0,              // no sharing
-                nullptr,           // default security attributes
-                OPEN_EXISTING,  // opens existing pipe
-                FILE_FLAG_OVERLAPPED, // default attributes
-                nullptr);           // no template file
+            m_pipeHandle = CreateFileA(m_hostInfo.hostname,          // Pipe name
+                                       GENERIC_READ | GENERIC_WRITE, // Read and write access
+                                       0,                            // No sharing
+                                       nullptr,                      // Default security attributes
+                                       OPEN_EXISTING,                // Opens existing pipe
+                                       FILE_FLAG_OVERLAPPED,         // Default attributes
+                                       nullptr);                     // No template file
 
             // CreateFile returns INVALID_HANDLE_VALUE on failure
             if (m_pipeHandle != INVALID_HANDLE_VALUE)
@@ -255,7 +252,9 @@ namespace DevDriver
     }
 
 #if !DD_VERSION_SUPPORTS(GPUOPEN_DISTRIBUTED_STATUS_FLAGS_VERSION)
-    Result WinPipeMsgTransport::QueryStatus(StatusFlags *pFlags, uint32 timeoutInMs)
+    Result WinPipeMsgTransport::QueryStatus(const HostInfo& hostInfo,
+                                            uint32          timeoutInMs,
+                                            StatusFlags*    pFlags)
     {
         Result result = Result::Error;
 
@@ -264,13 +263,13 @@ namespace DevDriver
 
         MessageBuffer responseMessage = {};
         DWORD bytesRead = 0;
-        BOOL success = CallNamedPipe(kNamedPipeName,
-            &message,
-            sizeof(message.header),
-            &responseMessage,
-            sizeof(responseMessage),
-            &bytesRead,
-            timeoutInMs);
+        const BOOL success = CallNamedPipe(hostInfo.hostname,
+                                           &message,
+                                           sizeof(message.header),
+                                           &responseMessage,
+                                           sizeof(responseMessage),
+                                           &bytesRead,
+                                           timeoutInMs);
         if ((success != FALSE) & (bytesRead > sizeof(responseMessage.header)))
         {
             result = Result::VersionMismatch;
@@ -295,7 +294,8 @@ namespace DevDriver
 
     // ================================================================================================================
     // Tests to see if the client can connect to RDS through this transport
-    Result WinPipeMsgTransport::TestConnection(uint32 timeoutInMs)
+    Result WinPipeMsgTransport::TestConnection(const HostInfo& hostInfo,
+                                               uint32          timeoutInMs)
     {
         Result result = Result::Error;
 
@@ -308,13 +308,13 @@ namespace DevDriver
 
         // Use CallNamedPipe to connect, send, receive, and disconnect to the named pipe
         DWORD bytesRead = 0;
-        BOOL success = CallNamedPipe(kNamedPipeName,
-                                     &message,
-                                     sizeof(message.header),
-                                     &responseMessage,
-                                     sizeof(responseMessage),
-                                     &bytesRead,
-                                     timeoutInMs);
+        const BOOL success = CallNamedPipe(hostInfo.hostname,
+                                           &message,
+                                           sizeof(message.header),
+                                           &responseMessage,
+                                           sizeof(responseMessage),
+                                           &bytesRead,
+                                           timeoutInMs);
         // Check to make sure we got the response + that the response is the expected size
         // KeepAlive is defined as having no additional payload, so it will only ever be the size of a header
         if ((success != FALSE) & (bytesRead == sizeof(responseMessage.header)))

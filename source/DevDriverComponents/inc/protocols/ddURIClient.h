@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,8 +31,7 @@
 #pragma once
 
 #include "baseProtocolClient.h"
-
-#include "protocols/systemProtocols.h"
+#include "ddUriInterface.h"
 
 namespace DevDriver
 {
@@ -45,16 +44,10 @@ namespace DevDriver
 
     namespace URIProtocol
     {
-        struct ResponseHeader
-        {
-            // The size of the response data in bytes
-            size_t responseDataSizeInBytes;
+        // We alias these types for backwards compatibility
+        using ResponseHeader = DevDriver::URIResponseHeader;
 
-            // The format of the response data
-            ResponseDataFormat responseDataFormat;
-        };
-
-        class URIClient : public BaseProtocolClient
+        class URIClient final : public BaseProtocolClient
         {
         public:
             explicit URIClient(IMsgChannel* pMsgChannel);

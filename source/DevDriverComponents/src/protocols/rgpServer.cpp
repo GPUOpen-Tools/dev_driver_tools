@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +29,7 @@
 #include "util/queue.h"
 
 #define RGP_SERVER_MIN_MAJOR_VERSION 2
-#define RGP_SERVER_MAX_MAJOR_VERSION 5
+#define RGP_SERVER_MAX_MAJOR_VERSION 6
 
 namespace DevDriver
 {
@@ -160,6 +160,26 @@ namespace DevDriver
                                             m_traceParameters.gpuMemoryLimitInMb = traceParameters.gpuMemoryLimitInMb;
                                             m_traceParameters.numPreparationFrames = traceParameters.numPreparationFrames;
                                             m_traceParameters.flags.u32All = traceParameters.flags.u32All;
+                                        }
+                                        else if (pSession->GetVersion() == RGP_TRIGGER_MARKERS_VERSION)
+                                        {
+                                            const TraceParametersV4& traceParameters = pSessionData->payload.executeTraceRequestV4.parameters;
+                                            m_traceParameters.gpuMemoryLimitInMb = traceParameters.gpuMemoryLimitInMb;
+                                            m_traceParameters.numPreparationFrames = traceParameters.numPreparationFrames;
+                                            m_traceParameters.flags.u32All = traceParameters.flags.u32All;
+
+                                            m_traceParameters.beginTag =
+                                                ((static_cast<uint64>(traceParameters.beginTagHigh) << 32) | traceParameters.beginTagLow);
+                                            m_traceParameters.endTag =
+                                                ((static_cast<uint64>(traceParameters.endTagHigh) << 32) | traceParameters.endTagLow);
+
+                                            Platform::Strncpy(m_traceParameters.beginMarker,
+                                                              traceParameters.beginMarker,
+                                                              sizeof(m_traceParameters.beginMarker));
+
+                                            Platform::Strncpy(m_traceParameters.endMarker,
+                                                              traceParameters.endMarker,
+                                                              sizeof(m_traceParameters.endMarker));
                                         }
                                         else
                                         {

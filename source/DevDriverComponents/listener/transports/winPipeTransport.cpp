@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -159,17 +159,14 @@ namespace DevDriver
 
             HANDLE hPipe = INVALID_HANDLE_VALUE;
             hPipe = CreateNamedPipeA(
-                kNamedPipeName,             // pipe name
-                PIPE_ACCESS_DUPLEX |        // read/write access
-                FILE_FLAG_OVERLAPPED,       // overlapped i/o
-                PIPE_TYPE_MESSAGE |       // message type pipe
-                PIPE_READMODE_MESSAGE |   // message-read mode
-                PIPE_WAIT,                // blocking mode
-                PIPE_UNLIMITED_INSTANCES, // max. instances
-                SEND_BUFSIZE,                  // output buffer size
-                RECV_BUFSIZE,                  // input buffer size
-                0,                        // client time-out
-                nullptr);                    // default security attribute
+                m_pipeName,                                             // Pipe name
+                PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,              // Can read/write and uses overlapped i/o
+                PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,  // Message oriented and blocking reads/writes
+                PIPE_UNLIMITED_INSTANCES,                               // Max. instances
+                SEND_BUFSIZE,                                           // Output buffer size
+                RECV_BUFSIZE,                                           // Input buffer size
+                0,                                                      // Client time-out
+                nullptr);                                               // Default security attribute
 
             if (hPipe == INVALID_HANDLE_VALUE)
             {
@@ -329,12 +326,13 @@ namespace DevDriver
         }
     }
 
-    PipeListenerTransport::PipeListenerTransport() :
+    PipeListenerTransport::PipeListenerTransport(const char* pPipeName) :
         m_listening(false),
         m_listenThread(),
         m_pRouter(nullptr)
     {
-
+        DD_ASSERT(pPipeName != nullptr);
+        Platform::Strncpy(&m_pipeName[0], pPipeName, sizeof(m_pipeName));
     }
 
     PipeListenerTransport::~PipeListenerTransport()
@@ -437,18 +435,14 @@ namespace DevDriver
 
         HANDLE hPipe = INVALID_HANDLE_VALUE;
         hPipe = CreateNamedPipeA(
-            kNamedPipeName,             // pipe name
-            PIPE_ACCESS_DUPLEX |        // read/write access
-            FILE_FLAG_OVERLAPPED |      // overlapped i/o
-            FILE_FLAG_FIRST_PIPE_INSTANCE,
-            PIPE_TYPE_MESSAGE |       // message type pipe
-            PIPE_READMODE_MESSAGE |   // message-read mode
-            PIPE_WAIT,                // blocking mode
-            PIPE_UNLIMITED_INSTANCES, // max. instances
-            SEND_BUFSIZE,                  // output buffer size
-            RECV_BUFSIZE,                  // input buffer size
-            0,                        // client time-out
-            nullptr);                    // default security attribute
+            m_pipeName,                                             // Pipe name
+            PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,              // Can read/write and uses overlapped i/o
+            PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,  // Message oriented and blocking reads/writes
+            PIPE_UNLIMITED_INSTANCES,                               // Max. instances
+            SEND_BUFSIZE,                                           // Output buffer size
+            RECV_BUFSIZE,                                           // Input buffer size
+            0,                                                      // Client time-out
+            nullptr);                                               // Default security attribute
 
         if (hPipe != INVALID_HANDLE_VALUE)
         {

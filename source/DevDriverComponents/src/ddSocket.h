@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,7 @@
  ******************************************************************************/
 /**
 ***********************************************************************************************************************
-* @file  tcpSocket.h
+* @file  socket.h
 * @brief PAL utility collection Socket class declaration.
 ***********************************************************************************************************************
 */
@@ -31,6 +31,7 @@
 #pragma once
 
 #include "gpuopen.h"
+#include "ddPlatform.h"
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -43,19 +44,15 @@
 #include <winsock2.h>
 #endif
 #pragma comment(lib, "ws2_32.lib")
-#define DD_SOCKET SOCKET
 #else
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
-
-#define DD_SOCKET int
 #endif
 
 namespace DevDriver
 {
-
     enum class SocketType : uint32
     {
         Unknown = 0,
@@ -63,6 +60,7 @@ namespace DevDriver
         Udp,
         Local
     };
+
     /**
     ***********************************************************************************************************************
     * @brief Encapsulates details of socket management for various platforms.
@@ -108,13 +106,21 @@ namespace DevDriver
         Result LookupAddressInfo(const char* pAddress, uint32 port, size_t addressInfoSize, char* pAddressInfo, size_t *pAddressSize);
 
     private:
-        DD_SOCKET m_osSocket;
+#if defined(DD_WINDOWS)
+        using OsSocketType = SOCKET;
+#else
+        using OsSocketType = int;
+#endif
 
-        Result InitAsClient(DD_SOCKET socket, const char* pAddress, uint32 port, bool isNonBlocking);
-
-        bool m_isNonBlocking;
-        SocketType m_socketType;
-        addrinfo m_hints;
+        OsSocketType m_osSocket;
+        bool         m_isNonBlocking;
+        SocketType   m_socketType;
+        addrinfo     m_hints;
+#if !defined(DD_WINDOWS)
+        char         m_address[kMaxStringLength];
+        size_t       m_addressSize;
+#endif
+        Result InitAsClient(OsSocketType socket, const char* pAddress, uint32 port, bool isNonBlocking);
     };
 
 } // DevDriver

@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -41,8 +41,7 @@ namespace DevDriver
     class HostMsgTransport : public IMsgTransport
     {
     public:
-        HostMsgTransport(const TransportCreateInfo &createInfo,
-                         const std::shared_ptr<HostListenerTransport> &pHostTransport,
+        HostMsgTransport(const std::shared_ptr<HostListenerTransport> &pHostTransport,
                          ClientId hostClientId);
         ~HostMsgTransport();
 
@@ -51,6 +50,11 @@ namespace DevDriver
 
         Result ReadMessage(MessageBuffer &messageBuffer, uint32 timeoutInMs) override;
         Result WriteMessage(const MessageBuffer &messageBuffer) override;
+
+        const char* GetTransportName() const override
+        {
+            return "Direct Connection";
+        }
 
 #if !DD_VERSION_SUPPORTS(GPUOPEN_DISTRIBUTED_STATUS_FLAGS_VERSION)
         Result UpdateClientStatus(ClientId clientId, StatusFlags flags) override;

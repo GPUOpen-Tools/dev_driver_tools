@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -49,7 +49,10 @@ namespace DevDriver
             ~LoggingClient();
 
             // Overrides the base client's update session functionality
-            void UpdateSession(const SharedPointer<ISession>& pSession) override;
+            void UpdateSession(const SharedPointer<ISession>& pSession) override final;
+
+            // Overrides the base client's session termination callback to ensure state gets reset
+            void SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason) override final;
 
             // Sends an enable logging message to the UMD
             Result EnableLogging(LogLevel priority, LoggingCategory categoryMask);

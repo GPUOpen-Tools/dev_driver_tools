@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -56,8 +56,7 @@ namespace DevDriver
     // Static pointer to a logging server for use by the LogMessage function
     static LoggingProtocol::LoggingServer* pLogServer = nullptr;
 
-    // Used when initializing the KMD and local client managers
-    DD_STATIC_CONST ClientId kUwpClientManagerPrefix = (0xFFFF) & kRouterPrefixMask;
+    // Client manager routing prefix
     DD_STATIC_CONST ClientId kListenerClientManagerPrefix = (0x0000) & kRouterPrefixMask;
 
     // =====================================================================================================================
@@ -97,6 +96,7 @@ namespace DevDriver
     // Constructor
     ListenerCore::ListenerCore() :
         m_createInfo(),
+        m_routerCore(),
         m_pClientManager(nullptr),
         m_started(false),
         m_pMsgChannel(nullptr),
@@ -128,7 +128,7 @@ namespace DevDriver
             infoStruct.routerPrefix = kListenerClientManagerPrefix;
             infoStruct.routerPrefixMask = 0;
 
-            IClientManager *pClientManager = new ListenerClientManager(infoStruct);
+            IClientManager *pClientManager = new ListenerClientManager(createInfo.allocCb, infoStruct);
             if (m_routerCore.SetClientManager(pClientManager) == Result::Success)
             {
                 m_pClientManager = pClientManager;
@@ -142,9 +142,11 @@ namespace DevDriver
         if (m_pClientManager != nullptr)
         {
 #ifdef _WIN32
-            std::shared_ptr<PipeListenerTransport> pPipeTransport = std::make_shared<PipeListenerTransport>();
+            auto pPipeTransport = std::make_shared<PipeListenerTransport>(kDefaultNamedPipe.hostname);
 #else
-            std::shared_ptr<SocketListenerTransport> pPipeTransport = std::make_shared<SocketListenerTransport>(SocketType::Local, kNamedPipeName, 0);
+            auto pPipeTransport = std::make_shared<SocketListenerTransport>(kDefaultNamedPipe.type,
+                                                                            kDefaultNamedPipe.hostname,
+                                                                            kDefaultNamedPipe.port);
 #endif
             if (m_routerCore.RegisterTransport(pPipeTransport) == Result::Success)
             {
@@ -156,7 +158,9 @@ namespace DevDriver
                 // todo: validate this.
                 ListenerBindAddress &address = createInfo.pAddressesToBind[i];
 
-                std::shared_ptr<SocketListenerTransport> pRemoteTransport = std::make_shared<SocketListenerTransport>(SocketType::Udp, address.hostAddress, address.port);
+                auto pRemoteTransport = std::make_shared<SocketListenerTransport>(TransportType::Remote,
+                                                                                  address.hostAddress,
+                                                                                  address.port);
                 if (m_routerCore.RegisterTransport(pRemoteTransport) == Result::Success)
                 {
                     m_managedTransports.emplace_back(pRemoteTransport);
@@ -176,13 +180,16 @@ namespace DevDriver
                 {
                     ClientId hostClientId = m_pClientManager->GetHostClientId();
 
-                    TransportCreateInfo transportCreateInfo = {};
-                    Platform::Strncpy(transportCreateInfo.clientDescription, createInfo.description, sizeof(transportCreateInfo.clientDescription));
-                    transportCreateInfo.createUpdateThread = true;
-                    transportCreateInfo.componentType = Component::Server;
-                    transportCreateInfo.allocCb = createInfo.allocCb;
-                    transportCreateInfo.type = TransportType::Local;
-                    m_pMsgChannel = new MessageChannel<HostMsgTransport>(transportCreateInfo, pLoopbackTransport, hostClientId);
+                    MessageChannelCreateInfo channelCreateInfo = {};
+                    Platform::Strncpy(channelCreateInfo.clientDescription,
+                                      createInfo.description,
+                                      sizeof(channelCreateInfo.clientDescription));
+                    channelCreateInfo.createUpdateThread = true;
+                    channelCreateInfo.componentType = Component::Server;
+                    m_pMsgChannel = new MessageChannel<HostMsgTransport>(createInfo.allocCb,
+                                                                         channelCreateInfo,
+                                                                         pLoopbackTransport,
+                                                                         hostClientId);
                     if (m_pMsgChannel != nullptr)
                     {
                         m_pServer = new ListenerServer(createInfo.serverCreateInfo, m_pMsgChannel);

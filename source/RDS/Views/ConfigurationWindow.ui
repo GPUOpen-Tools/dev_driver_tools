@@ -118,7 +118,7 @@
            </property>
            <property name="icon">
             <iconset resource="../Service.qrc">
-             <normaloff>:/images/ResetIcon.svg</normaloff>:/images/ResetIcon.svg</iconset>
+             <normaloff>:/images/third_party/ionicons/loop.svg</normaloff>:/images/third_party/ionicons/loop.svg</iconset>
            </property>
           </widget>
          </item>

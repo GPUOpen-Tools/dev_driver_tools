@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -49,22 +49,24 @@ namespace DevDriver
         virtual ~BaseProtocolClient();
 
         // query constant properties of the protocol client
-        Protocol GetProtocol() const override { return m_protocol; };
-        SessionType GetType() const override { return SessionType::Client; };
-        Version GetMinVersion() const override { return m_minVersion; };
-        Version GetMaxVersion() const override { return m_maxVersion; };
+        Protocol GetProtocol() const override final { return m_protocol; };
+        SessionType GetType() const override final { return SessionType::Client; };
+        Version GetMinVersion() const override final { return m_minVersion; };
+        Version GetMaxVersion() const override final { return m_maxVersion; };
 
         // connection management/tracking
-        Result Connect(ClientId clientId) override;
-        void Disconnect() override;
-        bool IsConnected() const override;
+        Result Connect(ClientId clientId) override final;
+        void Disconnect() override final;
+        bool IsConnected() const override final;
 
+#if !DD_VERSION_SUPPORTS(GPUOPEN_SESSION_INTERFACE_CLEANUP_VERSION)
         // Orphans the current session associated with the client object and moves to the disconnected state
-        void Orphan() override;
+        void Orphan() override final;
+#endif
 
         // properties that are only valid in a connected session
-        ClientId GetRemoteClientId() const override;
-        Version GetSessionVersion() const override;
+        ClientId GetRemoteClientId() const override final;
+        Version GetSessionVersion() const override final;
 
         // asychronous callbacks used by the SessionManager - should never be called directly
         virtual void SessionEstablished(const SharedPointer<ISession>& pSession) override;
@@ -73,7 +75,9 @@ namespace DevDriver
 
     protected:
         BaseProtocolClient(IMsgChannel* pMsgChannel, Protocol protocol, Version minVersion, Version maxVersion);
-        virtual void ResetState() = 0;
+
+        // Default implementation of ResetState that does nothing
+        virtual void ResetState() {};
 
         IMsgChannel* const m_pMsgChannel;
         const Protocol m_protocol;

@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,12 +28,12 @@
 
 namespace DevDriver
 {
-    ListenerClientManager::ListenerClientManager(const ListenerClientManagerInfo& clientManagerInfo) :
+    ListenerClientManager::ListenerClientManager(const AllocCb& allocCb, const ListenerClientManagerInfo& clientManagerInfo) :
         m_clientManagerInfo(clientManagerInfo),
         m_initialized(false),
         m_hostClientId(kBroadcastClientId),
         m_clientMutex(),
-        m_clientInfo(),
+        m_clientInfo(allocCb),
 #if !DD_VERSION_SUPPORTS(GPUOPEN_DEPRECATE_LEGACY_KMD_VERSION)
         m_combinedStatusFlags(static_cast<StatusFlags>(ClientStatusFlags::None)),
 #endif
@@ -54,14 +54,14 @@ namespace DevDriver
         Result result = Result::Error;
         if (!m_initialized)
         {
-            std::lock_guard<std::mutex> lock(m_clientMutex);
+            Platform::LockGuard<Platform::Mutex> clientLock(m_clientMutex);
 
             m_hostClientId = GenerateClientId();
             DD_ASSERT(m_hostClientId != kBroadcastClientId);
             m_initialized = true;
             *pClientId = m_hostClientId;
 #if DD_VERSION_SUPPORTS(GPUOPEN_DEPRECATE_LEGACY_KMD_VERSION)
-            m_clientInfo.emplace(m_hostClientId);
+            m_clientInfo.Insert(m_hostClientId);
 #else
             m_clientInfo[m_hostClientId].status = 0;
             m_clientInfo[m_hostClientId].componentType = Component::Server;
@@ -78,7 +78,7 @@ namespace DevDriver
         Result result = Result::Error;
         if (m_initialized)
         {
-            std::lock_guard<std::mutex> lock(m_clientMutex);
+            Platform::LockGuard<Platform::Mutex> clientLock(m_clientMutex);
             m_clientInfo[m_hostClientId].status = flags;
             RecalculateClientStatus();
             result = Result::Success;
@@ -92,8 +92,8 @@ namespace DevDriver
         Result result = Result::Error;
         if (m_initialized)
         {
-            std::lock_guard<std::mutex> lock(m_clientMutex);
-            m_clientInfo.clear();
+            Platform::LockGuard<Platform::Mutex> clientLock(m_clientMutex);
+            m_clientInfo.Clear();
             m_hostClientId = kBroadcastClientId;
 #if !DD_VERSION_SUPPORTS(GPUOPEN_DEPRECATE_LEGACY_KMD_VERSION)
             RecalculateClientStatus();
@@ -113,7 +113,7 @@ namespace DevDriver
         Result result = Result::Error;
         if (m_initialized)
         {
-            std::lock_guard<std::mutex> lock(m_clientMutex);
+            Platform::LockGuard<Platform::Mutex> clientLock(m_clientMutex);
 
             const ClientId tempClientId = GenerateClientId();
             if (tempClientId != kBroadcastClientId)
@@ -121,12 +121,12 @@ namespace DevDriver
                 const ClientId clientMask = ~m_clientManagerInfo.routerPrefixMask;
                 DD_ASSERT((tempClientId & clientMask) != kBroadcastClientId);
 #if DD_VERSION_SUPPORTS(GPUOPEN_DEPRECATE_LEGACY_KMD_VERSION)
-                m_clientInfo.emplace(tempClientId);
+                m_clientInfo.Insert(tempClientId);
 #else
                 ClientInfo newClientInfo = {};
                 newClientInfo.componentType = componentType;
                 newClientInfo.status = flags;
-                m_clientInfo.emplace(tempClientId, newClientInfo);
+                m_clientInfo.Create(tempClientId, newClientInfo);
                 RecalculateClientStatus();
 #endif
                 *pClientId = tempClientId;
@@ -146,10 +146,10 @@ namespace DevDriver
         Result result = Result::Error;
         if (m_initialized & (clientId != m_hostClientId))
         {
-            std::lock_guard<std::mutex> lock(m_clientMutex);
+            Platform::LockGuard<Platform::Mutex> clientLock(m_clientMutex);
             // Attempt to erase a client with the specified client ID. If >0 we have successfully removed
             // the client ID from the set.
-            if (m_clientInfo.erase(clientId) > 0)
+            if (m_clientInfo.Erase(clientId) == Result::Success)
             {
 #if !DD_VERSION_SUPPORTS(GPUOPEN_DEPRECATE_LEGACY_KMD_VERSION)
                 RecalculateClientStatus();
@@ -166,11 +166,11 @@ namespace DevDriver
         Result result = Result::Error;
         if (m_initialized & (clientId != m_hostClientId))
         {
-            std::lock_guard<std::mutex> lock(m_clientMutex);
-            auto find = m_clientInfo.find(clientId);
-            if (find != m_clientInfo.end())
+            Platform::LockGuard<Platform::Mutex> clientLock(m_clientMutex);
+            auto find = m_clientInfo.Find(clientId);
+            if (find != m_clientInfo.End())
             {
-                find->second.status = flags;
+                find->value.status = flags;
                 result = Result::Success;
                 RecalculateClientStatus();
             }
@@ -197,7 +197,7 @@ namespace DevDriver
         m_combinedStatusFlags = static_cast<StatusFlags>(ClientStatusFlags::None);
         for (auto &client : m_clientInfo)
         {
-            m_combinedStatusFlags |= client.second.status;
+            m_combinedStatusFlags |= client.value .status;
         }
 
         return (m_combinedStatusFlags != originalFlags);
@@ -215,7 +215,7 @@ namespace DevDriver
         // The maximum number of clients we can allocate is equal the client ID mask, less one for the broadcast ID
         DD_STATIC_CONST size_t kMaxNumberOfClients = (kClientIdMask - 1);
 
-        if (m_clientInfo.size() < kMaxNumberOfClients)
+        if (m_clientInfo.Size() < kMaxNumberOfClients)
         {
             // Loop until we have found a client ID that is not the broadcast client ID and that we haven't allocated
             do
@@ -223,8 +223,7 @@ namespace DevDriver
                 // Add one since the range is typically 0 <= x < Max
                 const uint32 randVal = m_rand.Generate() + 1;
                 tempClientId = static_cast<ClientId>(randVal & clientMask) | routerPrefix;
-            } while (((tempClientId & clientMask) == kBroadcastClientId) ||
-                     (m_clientInfo.find(tempClientId) != m_clientInfo.end()));
+            } while (((tempClientId & clientMask) == kBroadcastClientId) || m_clientInfo.Contains(tempClientId));
         }
 
         DD_ASSERT(tempClientId != kBroadcastClientId);

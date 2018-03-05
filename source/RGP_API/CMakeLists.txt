@@ -20,10 +20,10 @@ if(WIN32)
 endif(WIN32)
 
 IF(WIN32)
-  add_compile_options(/W4 /wd4127 /wd4201 /wd4714 /MP -DBUILD_DLL -DGPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=27)
+  add_compile_options(/W4 /wd4127 /wd4201 /wd4714 /MP -DBUILD_DLL -DGPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=30)
 ELSEIF(UNIX)
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG")
-  add_compile_options(-std=c++11 -D_LINUX -Wall -Wextra -Wmissing-field-initializers -Wno-unused-variable -DGPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=27)
+  add_compile_options(-std=c++11 -D_LINUX -Wall -Wextra -Wmissing-field-initializers -Wno-unused-variable -DGPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=30)
 ENDIF(WIN32)
 
 set ( DEVDRIVERSOURCES
@@ -51,6 +51,7 @@ set ( DEVDRIVERSOURCES
  "../DevDriverComponents/src/baseProtocolServer.cpp"
  "../DevDriverComponents/src/ddClientURIService.cpp"
  "../DevDriverComponents/src/ddClientURIService.h"
+ "../DevDriverComponents/src/ddSocket.h"
  "../DevDriverComponents/src/ddTransferManager.cpp"
  "../DevDriverComponents/src/devDriverClient.cpp"
  "../DevDriverComponents/src/devDriverServer.cpp"
@@ -60,7 +61,6 @@ set ( DEVDRIVERSOURCES
  "../DevDriverComponents/src/session.cpp"
  "../DevDriverComponents/src/sessionManager.h"
  "../DevDriverComponents/src/sessionManager.cpp"
- "../DevDriverComponents/src/socket.h"
  "../DevDriverComponents/src/socketMsgTransport.h"
  "../DevDriverComponents/src/socketMsgTransport.cpp"
  "../DevDriverComponents/src/protocols/ddGpuCrashDumpClient.cpp"

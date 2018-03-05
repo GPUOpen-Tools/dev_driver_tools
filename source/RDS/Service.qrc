@@ -1,6 +1,6 @@
 <!DOCTYPE RCC><RCC version="1.0">
 <qresource prefix="/">
    <file>../../images/RDS_Icon.png</file>
-   <file>../../images/ResetIcon.svg</file>
+   <file>../../images/third_party/ionicons/loop.svg</file>
 </qresource>
 </RCC>

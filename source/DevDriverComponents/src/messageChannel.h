@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -42,7 +42,7 @@
 
 namespace DevDriver
 {
-    template <class T>
+    template <class MsgTransport>
     class MessageChannel : public IMsgChannel
     {
         static void MsgChannelReceiveFunc(void* pThreadParam);
@@ -50,46 +50,65 @@ namespace DevDriver
 
     public:
         template <class ...Args>
-        MessageChannel(const TransportCreateInfo& createInfo, Args&&... args);
+
+        MessageChannel(const AllocCb&                  allocCb,
+                       const MessageChannelCreateInfo& createInfo,
+                       Args&&...                       args);
 
         ~MessageChannel();
 
-        void Update(uint32 timeoutInMs = kDefaultUpdateTimeoutInMs) override;
+        void Update(uint32 timeoutInMs = kDefaultUpdateTimeoutInMs) override final;
 
-        Result Register(uint32 timeoutInMs = kInfiniteTimeout) override;
-        Result Unregister() override;
-        bool IsConnected() override;
+        Result Register(uint32 timeoutInMs = kInfiniteTimeout) override final;
+        Result Unregister() override final;
+        bool IsConnected() override final;
 
-        Result SetStatusFlags(StatusFlags flags) override;
-        StatusFlags GetStatusFlags() const override;
+        Result SetStatusFlags(StatusFlags flags) override final;
+        StatusFlags GetStatusFlags() const override final;
 
-        Result Send(ClientId dstClientId, Protocol protocol, MessageCode message,
+        Result Send(ClientId dstClientId,
+                    Protocol protocol,
+                    MessageCode message,
                     const ClientMetadata& metadata,
                     uint32 payloadSizeInBytes,
-                    const void* pPayload) override;
+                    const void* pPayload) override final;
 
-        Result Receive(MessageBuffer& message, uint32 timeoutInMs) override;
-        Result Forward(const MessageBuffer& messageBuffer) override;
+        Result Receive(MessageBuffer& message, uint32 timeoutInMs) override final;
+        Result Forward(const MessageBuffer& messageBuffer) override final;
 
-        Result EstablishSession(ClientId dstClientId, IProtocolClient* pClient) override;
-        Result RegisterProtocolServer(IProtocolServer* pServer) override;
-        Result UnregisterProtocolServer(IProtocolServer* pServer) override;
-        IProtocolServer* GetProtocolServer(Protocol protocol) override;
+        Result ConnectProtocolClient(IProtocolClient* pProtocolClient, ClientId dstClientId) override final;
+        Result RegisterProtocolServer(IProtocolServer* pServer) override final;
+        Result UnregisterProtocolServer(IProtocolServer* pServer) override final;
+        IProtocolServer* GetProtocolServer(Protocol protocol) override final;
 
-        ClientId GetClientId() const override;
+        ClientId GetClientId() const override final;
 
-        const ClientInfoStruct& GetClientInfo() const override { return m_clientInfoResponse; }
+        const ClientInfoStruct& GetClientInfo() const override final
+        {
+            return m_clientInfoResponse;
+        }
+
+        const char* GetTransportName() const override
+        {
+            return m_msgTransport.GetTransportName();
+        }
 
         Result FindFirstClient(const ClientMetadata& filter,
                                ClientId*             pClientId,
                                uint32                timeoutInMs,
-                               ClientMetadata*       pClientMetadata) override;
+                               ClientMetadata*       pClientMetadata) override final;
 
-        const AllocCb& GetAllocCb() const override { return m_createInfo.allocCb; }
+        const AllocCb& GetAllocCb() const override final
+        {
+            return m_allocCb;
+        }
 
-        TransferProtocol::TransferManager& GetTransferManager() override { return m_transferManager; }
+        TransferProtocol::TransferManager& GetTransferManager() override final
+        {
+            return m_transferManager;
+        }
 
-        Result RegisterService(URIProtocol::URIService* pService) override
+        Result RegisterService(IService* pService) override final
         {
             DD_ASSERT(pService != nullptr);
             DD_ASSERT(m_pURIServer != nullptr);
@@ -97,7 +116,7 @@ namespace DevDriver
             return m_pURIServer->RegisterService(pService);
         }
 
-        Result UnregisterService(URIProtocol::URIService* pService) override
+        Result UnregisterService(IService* pService) override final
         {
             DD_ASSERT(pService != nullptr);
             DD_ASSERT(m_pURIServer != nullptr);
@@ -126,9 +145,9 @@ namespace DevDriver
         Result DestroyMsgThread();
 
         Result Disconnect();
-        bool HandleMessageReceived(const MessageBuffer &messageBuffer);
+        bool HandleMessageReceived(const MessageBuffer& messageBuffer);
 
-        Result SendSystem(ClientId dstClientId, SystemProtocol::SystemMessage message, const ClientMetadata &metadata);
+        Result SendSystem(ClientId dstClientId, SystemProtocol::SystemMessage message, const ClientMetadata& metadata);
 
 #ifdef DEVDRIVER_ENABLE_PACKET_LOSS
         // Returns true if a packet should be dropped. Used for testing.
@@ -183,30 +202,30 @@ namespace DevDriver
         }
 #endif
 
+        DD_STATIC_CONST uint64            kKeepAliveTimeout = 2000;
+        DD_STATIC_CONST uint64            kKeepAliveThreshold = 5;
+        DD_STATIC_CONST uint64            kRetransmitTimeoutInMs = 50;
+
+        MsgTransport                      m_msgTransport;
+        ReceiveQueue                      m_receiveQueue;
+        ClientId                          m_clientId;
+
+        AllocCb                           m_allocCb;
+        const MessageChannelCreateInfo    m_createInfo;
+        ClientInfoStruct                  m_clientInfoResponse;
 #ifdef DEVDRIVER_ENABLE_PACKET_LOSS
         // Random number generator for packet loss testing.
         Platform::Random                  m_packetLossRng;
 #endif
 
-        ClientId                          m_clientId;
-        SessionManager                    m_sessionManager;
-        Platform::Thread                  m_msgThread;
-        MsgThreadInfo                     m_msgThreadParams;
-        T                                 m_msgTransport;
-        const TransportCreateInfo         m_createInfo;
-        ClientInfoStruct                  m_clientInfoResponse;
-
-        ReceiveQueue                      m_receiveQueue;
-
-        DD_STATIC_CONST uint64            kKeepAliveTimeout      = 2000;
-        DD_STATIC_CONST uint64            kKeepAliveThreshold    = 5;
-        DD_STATIC_CONST uint64            kRetransmitTimeoutInMs = 50;
-
         volatile uint64                   m_lastActivityTimeMs;
         SessionId                         m_lastKeepaliveTransmitted;
         SessionId                         m_lastKeepaliveReceived;
-        Platform::Semaphore               m_updateSemaphore;
 
+        Platform::Thread                  m_msgThread;
+        MsgThreadInfo                     m_msgThreadParams;
+        Platform::Semaphore               m_updateSemaphore;
+        SessionManager                    m_sessionManager;
         TransferProtocol::TransferManager m_transferManager;
         URIProtocol::URIServer*           m_pURIServer;
         ClientURIService                  m_clientURIService;

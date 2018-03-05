@@ -74,11 +74,13 @@ void DbgMsg(const std::string& strMsg)
     std::cout << strMsg << std::endl;
     char buf[1024];
     sprintf_s(buf, 1024, "%s\n", strMsg.c_str());
-#ifdef _LINUX
+ #ifdef _LINUX
     printf(buf);
-#else
+ #else
     OutputDebugStringA(buf);
-#endif
+ #endif
+#else
+    DD_UNUSED(strMsg);
 #endif // def _DEBUG
 }
 
@@ -142,16 +144,9 @@ void RGPClientInProcessModel::Finish()
 bool RGPClientInProcessModel::InitDriverProtocols()
 {
     // bind to all network adapters
-    DevDriver::ListenerBindAddress address = {};
-    strcpy(address.hostAddress, "0.0.0.0");
-    address.port = DevDriver::kDefaultNetworkPort;
-
     DevDriver::ListenerCreateInfo createInfo = {};
     const char* kListenerDescription = "Radeon Developer Service [RGPClientInProcess]";
     strncpy(createInfo.description, kListenerDescription, sizeof(createInfo.description));
-    createInfo.pAddressesToBind = &address;
-    createInfo.numAddresses = 1;
-    createInfo.flags.enableUWP = 0;
     createInfo.flags.enableServer = 1;
     createInfo.serverCreateInfo.enabledProtocols.etw = true;
 
@@ -498,7 +493,6 @@ bool RGPClientInProcessModel::EnableRgpProfiling(DevDriver::RGPProtocol::RGPClie
 
     Result result = pRgpClient->EnableProfiling();
 
-    bool bReturn = false;
     if (result == Result::Success)
     {
         DbgMsg("RGP profiling enabled");
@@ -655,7 +649,6 @@ static void WorkerInit(void* pThreadParam)
 
 static void WorkerCapture(void* pThreadParam)
 {
-    bool result = false;
     using namespace DevDriver;
     RGPWorkerThreadContext*  pThreadContext = reinterpret_cast<RGPWorkerThreadContext*>(pThreadParam);
     RGPClientInProcessModel* pContext = pThreadContext->m_pContext;

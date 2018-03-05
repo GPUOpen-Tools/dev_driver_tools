@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,20 +31,19 @@
 #pragma once
 
 #include "baseProtocolServer.h"
-#include "protocols/systemProtocols.h"
-#include "util/hashMap.h"
+#include "protocols/ddTransferProtocol.h"
 
 namespace DevDriver
 {
     namespace TransferProtocol
     {
-        class LocalBlock;
+        class TransferManager;
 
         // The protocol server implementation for the transfer protocol.
-        class TransferServer : public BaseProtocolServer
+        class TransferServer final : public BaseProtocolServer
         {
         public:
-            explicit TransferServer(IMsgChannel* pMsgChannel);
+            explicit TransferServer(IMsgChannel* pMsgChannel, TransferManager* pTransferManager);
             ~TransferServer();
 
             void Finalize() override;
@@ -53,19 +52,10 @@ namespace DevDriver
             void SessionEstablished(const SharedPointer<ISession>& pSession) override;
             void UpdateSession(const SharedPointer<ISession>& pSession) override;
             void SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason) override;
-
-            // Adds a local block to the list of registered blocks.
-            void RegisterLocalBlock(const SharedPointer<LocalBlock>& pLocalBlock);
-
-            // Removes a local block from the list of registered blocks.
-            void UnregisterLocalBlock(const SharedPointer<LocalBlock>& pLocalBlock);
-
         private:
-            // Mutex used for synchronizing the registered blocks list.
-            Platform::Mutex m_mutex;
+            TransferManager* m_pTransferManager;
 
-            // A list of all the local blocks that currently exist on this client.
-            HashMap<BlockId, SharedPointer<LocalBlock>, 16> m_registeredLocalBlocks;
+            class TransferSession;
         };
     }
 } // DevDriver

@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,15 +27,11 @@
 #include "ddTransferManager.h"
 #include "listenerCore.h"
 
-// String used to identify the listener URI service
-static const char* kListenerURIServiceName = "listener";
-
 namespace DevDriver
 {
     // =====================================================================================================================
     ListenerURIService::ListenerURIService()
-        : URIProtocol::URIService(kListenerURIServiceName)
-        , m_pListenerCore(nullptr)
+        : m_pListenerCore(nullptr)
     {
     }
 
@@ -45,8 +41,7 @@ namespace DevDriver
     }
 
     // =====================================================================================================================
-    Result ListenerURIService::HandleRequest(
-        URIProtocol::URIRequestContext* pContext)
+    Result ListenerURIService::HandleRequest(URIRequestContext* pContext)
     {
         DD_ASSERT(pContext != nullptr);
 
@@ -101,7 +96,7 @@ namespace DevDriver
                     pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
                 }
 
-                pContext->responseDataFormat = URIProtocol::ResponseDataFormat::Text;
+                pContext->responseDataFormat = URIDataFormat::Text;
 
                 result = Result::Success;
             }
@@ -141,7 +136,7 @@ namespace DevDriver
                     pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
                 }
 
-                pContext->responseDataFormat = URIProtocol::ResponseDataFormat::Text;
+                pContext->responseDataFormat = URIDataFormat::Text;
 
                 result = Result::Success;
             }
@@ -176,7 +171,7 @@ namespace DevDriver
                 Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Manager Host Client Id: %u", static_cast<uint32>(pClientManager->GetHostClientId()));
                 pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
 
-                pContext->responseDataFormat = URIProtocol::ResponseDataFormat::Text;
+                pContext->responseDataFormat = URIDataFormat::Text;
 
                 result = Result::Success;
             }

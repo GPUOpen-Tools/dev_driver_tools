@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -47,8 +47,9 @@ namespace DevDriver
         virtual Result Connect(ClientId clientId) = 0;
         virtual void Disconnect() = 0;
 
+#if !DD_VERSION_SUPPORTS(GPUOPEN_SESSION_INTERFACE_CLEANUP_VERSION)
         virtual void Orphan() = 0;
-
+#endif
         virtual bool IsConnected() const = 0;
         virtual ClientId GetRemoteClientId() const = 0;
     protected:

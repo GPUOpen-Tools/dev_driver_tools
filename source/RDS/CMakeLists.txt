@@ -20,10 +20,10 @@ if(WIN32)
 endif(WIN32)
 
 IF(WIN32)
-  add_compile_options(/W4 /wd4127 /wd4201 /MP -DGPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=27 -DDD_PRINT_FUNC=LogMessage -DGPUOPEN_UWP_SUPPORT=1)
+  add_compile_options(/W4 /wd4127 /wd4201 /MP -DGPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=30 -DDD_PRINT_FUNC=LogMessage -DGPUOPEN_UWP_SUPPORT=1)
 ELSEIF(UNIX)
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG")
-  add_compile_options(-std=c++11 -D_LINUX -Wall -Wextra -Wmissing-field-initializers -Wno-unused-variable -DGPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=27 -DDD_PRINT_FUNC=LogMessage)
+  add_compile_options(-std=c++11 -D_LINUX -Wall -Wextra -Wmissing-field-initializers -Wno-unused-variable -DGPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=30 -DDD_PRINT_FUNC=LogMessage)
 ENDIF(WIN32)
 
 set (DEVDRIVERSOURCES
@@ -49,6 +49,7 @@ set (DEVDRIVERSOURCES
  "../DevDriverComponents/src/baseProtocolClient.cpp"
  "../DevDriverComponents/src/baseProtocolServer.cpp"
  "../DevDriverComponents/src/ddClientURIService.cpp"
+ "../DevDriverComponents/src/ddSocket.h"
  "../DevDriverComponents/src/ddTransferManager.cpp"
  "../DevDriverComponents/src/devDriverServer.cpp"
  "../DevDriverComponents/src/messageChannel.h"
@@ -57,7 +58,6 @@ set (DEVDRIVERSOURCES
  "../DevDriverComponents/src/session.h"
  "../DevDriverComponents/src/sessionManager.cpp"
  "../DevDriverComponents/src/sessionManager.h"
- "../DevDriverComponents/src/socket.h"
  "../DevDriverComponents/src/socketMsgTransport.cpp"
  "../DevDriverComponents/src/socketMsgTransport.h"
  "../DevDriverComponents/src/protocols/ddGpuCrashDumpClient.cpp"

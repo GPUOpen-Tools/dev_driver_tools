@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,7 @@
 
 #pragma once
 
-#define GPUOPEN_INTERFACE_MAJOR_VERSION 29
+#define GPUOPEN_INTERFACE_MAJOR_VERSION 31
 #define GPUOPEN_INTERFACE_MINOR_VERSION 0
 
 #define GPUOPEN_INTERFACE_VERSION ((GPUOPEN_INTERFACE_MAJOR_VERSION << 16) | GPUOPEN_INTERFACE_MINOR_VERSION)
@@ -43,6 +43,14 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*| 31.0    | Clean up DevDriverClient and DevDriverServer create info structs. Replace TransportCreateInfo            |
+*|         | struct with MessageChannelCreateInfo and HostInfo structs.                                               |
+*| 30.2    | Added support for RGP v6 protocol which supports trace trigger markers.                                  |
+*| 30.1    | Add Push transfer support to the transfer protocol. Added PushBlock class, added v2 of the               |
+*|         | TransferProtocol, and did a lot of internal cleanup. Legacy interfaces will be deprecated in a future    |
+*|         | interface version change alongside URI changes.                                                          |
+*| 30.0    | Remove CloseSession and OrphanSession from the public ISession object interface, and move the            |
+*|         | functionality into the Session class.                                                                    |
 *| 29.0    | Added a ResponseDataFormat enum to the URI protocol to distinguish between binary and text responses.    |
 *| 28.0    | Formally deprecate legacy KMD client manager support in the Listener.                                    |
 *| 27.2    | Updated FindFirstClient to support returning the matching ClientMetadata struct.                         |
@@ -126,6 +134,8 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 ***********************************************************************************************************************
 */
 
+#define GPUOPEN_CREATE_INFO_CLEANUP_VERSION 31
+#define GPUOPEN_SESSION_INTERFACE_CLEANUP_VERSION 30
 #define GPUOPEN_URI_RESPONSE_FORMATS_VERSION 29
 #define GPUOPEN_DEPRECATE_LEGACY_KMD_VERSION 28
 #define GPUOPEN_DISTRIBUTED_STATUS_FLAGS_VERSION 27
@@ -160,7 +170,7 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 #include <stdint.h>
 
 #if defined(_MSC_VER)
-#define DD_ALIGNED_STRUCT(x) struct __declspec(align(x))
+#define DD_ALIGNAS(x)__declspec(align(x))
 #if _MSC_VER < 1900
 #define DD_STATIC_CONST static const
 #else
@@ -176,13 +186,19 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 #endif
 #endif
 
-#if !defined(DD_ALIGNED_STRUCT)
+#if !defined(DD_ALIGNAS)
 #if defined(__cplusplus) && __cplusplus >= 201103L
-#define DD_ALIGNED_STRUCT(x) struct alignas(x)
+#define DD_ALIGNAS(x) alignas(x)
 #else
-static_assert(false, "Error: unsupported compiler detected. Please implement support for DD_ALIGNED_STRUCT structures ")
+static_assert(false, "Error: unsupported compiler detected. Support is required to build.");
 #endif
 #endif
+
+// Creates a structure with the specified name and alignment.
+#define DD_ALIGNED_STRUCT(name, alignment) struct DD_ALIGNAS(alignment) name
+
+// Creates a structure with the specified alignment, and mark it as final to ensure it cannot be used as a parent class
+#define DD_NETWORK_STRUCT(name, alignment) struct DD_ALIGNAS(alignment) name final
 
 #define DD_CHECK_SIZE(x, size) static_assert(sizeof(x) == size_t(size), #x " size has changed unexpectedly")
 
@@ -273,7 +289,7 @@ namespace DevDriver
 
     union ProtocolFlags
     {
-        DD_ALIGNED_STRUCT(4)
+        struct DD_ALIGNAS(4)
         {
             uint32 logging          : 1;
             uint32 settings         : 1;
@@ -301,7 +317,7 @@ namespace DevDriver
 
     union ClientMetadata
     {
-        DD_ALIGNED_STRUCT(8)
+        struct DD_ALIGNAS(8)
         {
             ProtocolFlags protocols;
             Component     clientType;
@@ -393,10 +409,56 @@ namespace DevDriver
 
     // Max string size for names and messages
     DD_STATIC_CONST Size kMaxStringLength = 128;
+
+    // Broadcast client ID
     DD_STATIC_CONST ClientId kBroadcastClientId = 0;
 
+    // Invalid Session ID
+    DD_STATIC_CONST SessionId kInvalidSessionId = 0;
+
+#if !DD_VERSION_SUPPORTS(GPUOPEN_CREATE_INFO_CLEANUP_VERSION)
+    // Default named pipe name
     DD_STATIC_CONST char kNamedPipeName[] = "\\\\.\\pipe\\AMD-Developer-Service";
+
+#endif
+    // Default network port number
     DD_STATIC_CONST uint32 kDefaultNetworkPort = 27300;
+
+    // Transport type enumeration
+    enum class TransportType : uint32
+    {
+        Local = 0,
+        Remote,
+    };
+
+    // Struct used to designate a transport type, port number, and hostname
+    struct HostInfo
+    {
+        TransportType   type;                       // Transport type, as defined above
+        uint32          port;                       // Port number if applicable
+        char            hostname[kMaxStringLength]; // Host address, address, or path
+    };
+
+    // Default local host information
+    DD_STATIC_CONST HostInfo kDefaultLocalHost =
+    {
+        TransportType::Remote,
+        kDefaultNetworkPort,
+        "127.0.0.1"
+    };
+
+    // Default named pipe information
+    DD_STATIC_CONST HostInfo kDefaultNamedPipe =
+    {
+        TransportType::Local,
+        0,
+#if defined(__APPLE__)
+        "/tmp/com.amd.AMD-Developer-Service"
+#else
+        "\\\\.\\pipe\\AMD-Developer-Service"
+#endif
+
+    };
 
     ////////////////////////////
     // Common definition of a message header
@@ -407,7 +469,7 @@ namespace DevDriver
     //       - minimum alignment could then be reduced to 2 bytes, and min packet size would be 8 bytes
     //       - downside is that pretty much every protocol would need to define some extra data
 
-    DD_ALIGNED_STRUCT(8) MessageHeader
+    DD_NETWORK_STRUCT(MessageHeader, 8)
     {
         // source and destination client ids
         ClientId            srcClientId;    //   0 -  15
@@ -431,7 +493,7 @@ namespace DevDriver
     DD_STATIC_CONST Size kMaxMessageSizeInBytes = 1408;
     DD_STATIC_CONST Size kMaxPayloadSizeInBytes = (kMaxMessageSizeInBytes - sizeof(MessageHeader));
 
-    DD_ALIGNED_STRUCT(8) MessageBuffer
+    DD_NETWORK_STRUCT(MessageBuffer, 8)
     {
         MessageHeader   header;
         char            payload[kMaxPayloadSizeInBytes];
@@ -439,23 +501,11 @@ namespace DevDriver
 
     DD_CHECK_SIZE(MessageBuffer, sizeof(MessageHeader) + kMaxPayloadSizeInBytes);
 
-    // A container struct that can hold any protocol's payload and keep track of its size.
-    // Not intended for network transport. This struct is intended to help simplify code that works with variably sized payloads.
-    // The struct is 8 byte aligned because the internal payload field requires 8 byte alignment.
-    DD_ALIGNED_STRUCT(8) SizedPayloadContainer
-    {
-        uint32 payloadSize;
-        uint32 _padding;
-        char payload[kMaxPayloadSizeInBytes];
-    };
-
-    DD_CHECK_SIZE(SizedPayloadContainer, 8 + kMaxPayloadSizeInBytes);
-
     // tripwire - this intentionally will break if the message version changes. Since these are breaking changes already, we need to address
     // this problem when it happens.
     static_assert(kMessageVersion == 1011, "ClientInfoStruct needs to be updated so that clientName is long enough to support a full path");
     // todo: shorten clientDescription to 64bytes and make clientName 320bytes to support full path
-    DD_ALIGNED_STRUCT(8) ClientInfoStruct
+    DD_NETWORK_STRUCT(ClientInfoStruct, 8)
     {
         char            clientName[kMaxStringLength];
         char            clientDescription[kMaxStringLength];

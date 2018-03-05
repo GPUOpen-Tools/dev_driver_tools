@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -38,6 +38,7 @@
 #include <unordered_map>
 #include <thread>
 #include "../transportThread.h"
+#include "msgTransport.h"
 
 namespace DevDriver
 {
@@ -57,7 +58,7 @@ namespace DevDriver
     class PipeListenerTransport : public IListenerTransport
     {
     public:
-        PipeListenerTransport();
+        PipeListenerTransport(const char* pPipeName);
         ~PipeListenerTransport() override;
 
         Result ReceiveMessage(ConnectionInfo &connectionInfo, MessageBuffer &message, uint32 timeoutInMs) override;
@@ -71,6 +72,7 @@ namespace DevDriver
         bool ForwardingConnection() override { return false; };
         const char* GetTransportName() override { return "Local Pipe"; };
     protected:
+        char            m_pipeName[kMaxStringLength];
         TransportHandle m_transportHandle;
 
         bool m_listening;

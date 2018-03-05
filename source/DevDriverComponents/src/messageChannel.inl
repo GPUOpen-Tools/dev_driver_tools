@@ -1,7 +1,7 @@
-/*
+﻿/*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,8 +30,8 @@ namespace DevDriver
 {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Thread function that calls the message channel update function until the
-    template <class T>
-    void MessageChannel<T>::MsgChannelReceiveFunc(void* pThreadParam)
+    template <class MsgTransport>
+    void MessageChannel<MsgTransport>::MsgChannelReceiveFunc(void* pThreadParam)
     {
         MessageChannel* pMessageChannel = reinterpret_cast<MessageChannel*>(pThreadParam);
 
@@ -51,34 +51,38 @@ namespace DevDriver
         }
     }
 
-    template <class T>
+    template <class MsgTransport>
     template <class ...Args>
-    MessageChannel<T>::MessageChannel(const TransportCreateInfo &createInfo, Args&&... args) :
+    MessageChannel<MsgTransport>::MessageChannel(const AllocCb&                  allocCb,
+                                                 const MessageChannelCreateInfo& createInfo,
+                                                 Args&&...                       args) :
+        m_msgTransport(Platform::Forward<Args>(args)...),
+        m_receiveQueue(allocCb),
         m_clientId(kBroadcastClientId),
-        m_sessionManager(createInfo.allocCb),
-        m_msgThread(),
-        m_msgThreadParams(),
-        m_msgTransport(createInfo, Platform::Forward<Args>(args)...),
+        m_allocCb(allocCb),
         m_createInfo(createInfo),
         m_clientInfoResponse(),
-        m_receiveQueue(createInfo.allocCb),
         m_lastActivityTimeMs(0),
         m_lastKeepaliveTransmitted(0),
         m_lastKeepaliveReceived(0),
+        m_msgThread(),
+        m_msgThreadParams(),
         m_updateSemaphore(1, 1),
-        m_transferManager(createInfo.allocCb),
-        m_pURIServer(nullptr)
+        m_sessionManager(allocCb),
+        m_transferManager(allocCb),
+        m_pURIServer(nullptr),
+        m_clientURIService()
     {
     }
 
-    template <class T>
-    MessageChannel<T>::~MessageChannel()
+    template <class MsgTransport>
+    MessageChannel<MsgTransport>::~MessageChannel()
     {
         Unregister();
     }
 
-    template <class T>
-    void MessageChannel<T>::Update(uint32 timeoutInMs)
+    template <class MsgTransport>
+    void MessageChannel<MsgTransport>::Update(uint32 timeoutInMs)
     {
         MessageBuffer messageBuffer = {};
 
@@ -104,7 +108,7 @@ namespace DevDriver
             {
                 Disconnect();
             }
-            else if (T::RequiresClientRegistration() & T::RequiresKeepAlive())
+            else if (MsgTransport::RequiresClientRegistration() & MsgTransport::RequiresKeepAlive())
             {
                 // if keep alive is enabled and the last message read wasn't an error
                 uint64 currentTime = Platform::GetCurrentTimeInMs();
@@ -147,14 +151,14 @@ namespace DevDriver
         }
     }
 
-    template <class T>
-    Result MessageChannel<T>::EstablishSession(ClientId dstClientId, IProtocolClient* pClient)
+    template <class MsgTransport>
+    Result MessageChannel<MsgTransport>::ConnectProtocolClient(IProtocolClient* pClient, ClientId dstClientId)
     {
-        return m_sessionManager.EstablishSession(dstClientId, pClient);
+        return (pClient != nullptr) ? m_sessionManager.EstablishSessionForClient(*pClient, dstClientId) : Result::Error;
     }
 
-    template <class T>
-    Result MessageChannel<T>::RegisterProtocolServer(IProtocolServer* pServer)
+    template <class MsgTransport>
+    Result MessageChannel<MsgTransport>::RegisterProtocolServer(IProtocolServer* pServer)
     {
         Result result = Result::Error;
         if (pServer != nullptr)
@@ -214,25 +218,25 @@ namespace DevDriver
         return result;
     }
 
-    template <class T>
-    Result MessageChannel<T>::UnregisterProtocolServer(IProtocolServer* pServer)
+    template <class MsgTransport>
+    Result MessageChannel<MsgTransport>::UnregisterProtocolServer(IProtocolServer* pServer)
     {
         // @todo: Remove enabled protocol metadata flags related to pServer
 
         return m_sessionManager.UnregisterProtocolServer(pServer);
     }
 
-    template <class T>
-    ClientId MessageChannel<T>::GetClientId() const
+    template <class MsgTransport>
+    ClientId MessageChannel<MsgTransport>::GetClientId() const
     {
         return m_clientId;
     }
 
-    template <class T>
-    inline Result MessageChannel<T>::FindFirstClient(const ClientMetadata& filter,
-                                                     ClientId*             pClientId,
-                                                     uint32                timeoutInMs,
-                                                     ClientMetadata*       pClientMetadata)
+    template <class MsgTransport>
+    inline Result MessageChannel<MsgTransport>::FindFirstClient(const ClientMetadata& filter,
+                                                                ClientId*             pClientId,
+                                                                uint32                timeoutInMs,
+                                                                ClientMetadata*       pClientMetadata)
     {
         using namespace DevDriver::SystemProtocol;
         Result result = Result::Error;
@@ -342,8 +346,8 @@ namespace DevDriver
         return result;
     }
 
-    template <class T>
-    bool MessageChannel<T>::HandleMessageReceived(const MessageBuffer &messageBuffer)
+    template <class MsgTransport>
+    bool MessageChannel<MsgTransport>::HandleMessageReceived(const MessageBuffer& messageBuffer)
     {
         using namespace DevDriver::SystemProtocol;
         using namespace DevDriver::ClientManagementProtocol;
@@ -352,7 +356,7 @@ namespace DevDriver
         bool forThisHost = false;
 
         // todo: move this out into message reading loop so that it isn't getting done for every message
-        if (T::RequiresClientRegistration() & T::RequiresKeepAlive())
+        if (MsgTransport::RequiresClientRegistration() & MsgTransport::RequiresKeepAlive())
         {
             m_lastActivityTimeMs = Platform::GetCurrentTimeInMs();
         }
@@ -427,8 +431,8 @@ namespace DevDriver
         return (handled | (!forThisHost));
     }
 
-    template <class T>
-    Result MessageChannel<T>::Send(ClientId dstClientId, Protocol protocol, MessageCode message, const ClientMetadata &metadata, uint32 payloadSizeInBytes, const void* pPayload)
+    template <class MsgTransport>
+    Result MessageChannel<MsgTransport>::Send(ClientId dstClientId, Protocol protocol, MessageCode message, const ClientMetadata &metadata, uint32 payloadSizeInBytes, const void* pPayload)
     {
         MessageBuffer messageBuffer = {};
         messageBuffer.header.dstClientId = dstClientId;
@@ -445,8 +449,8 @@ namespace DevDriver
         return Forward(messageBuffer);
     }
 
-    template <class T>
-    Result MessageChannel<T>::SendSystem(ClientId dstClientId, SystemProtocol::SystemMessage message, const ClientMetadata &metadata)
+    template <class MsgTransport>
+    Result MessageChannel<MsgTransport>::SendSystem(ClientId dstClientId, SystemProtocol::SystemMessage message, const ClientMetadata &metadata)
     {
         MessageBuffer messageBuffer = {};
         messageBuffer.header.dstClientId = dstClientId;
@@ -457,8 +461,8 @@ namespace DevDriver
         return Forward(messageBuffer);
     }
 
-    template <class T>
-    Result MessageChannel<T>::Forward(const MessageBuffer &messageBuffer)
+    template <class MsgTransport>
+    Result MessageChannel<MsgTransport>::Forward(const MessageBuffer& messageBuffer)
     {
         Result result = Result::Error;
         if (m_clientId != kBroadcastClientId)
@@ -472,8 +476,8 @@ namespace DevDriver
         return result;
     }
 
-    template <class T>
-    Result MessageChannel<T>::Receive(MessageBuffer &message, uint32 timeoutInMs)
+    template <class MsgTransport>
+    Result MessageChannel<MsgTransport>::Receive(MessageBuffer& message, uint32 timeoutInMs)
     {
         Result result = Result::Unavailable;
         if ((m_receiveQueue.queue.Size() > 0) | (m_clientId != kBroadcastClientId))
@@ -488,8 +492,8 @@ namespace DevDriver
         return result;
     }
 
-    template <class T>
-    Result MessageChannel<T>::Register(uint32 timeoutInMs)
+    template <class MsgTransport>
+    Result MessageChannel<MsgTransport>::Register(uint32 timeoutInMs)
     {
         Result status = Result::Error;
 
@@ -498,7 +502,7 @@ namespace DevDriver
             status = m_msgTransport.Connect(&m_clientId, timeoutInMs);
         }
 
-        if (T::RequiresClientRegistration())
+        if (MsgTransport::RequiresClientRegistration())
         {
             if ((status == Result::Success) & (m_clientId == kBroadcastClientId))
             {
@@ -571,7 +575,7 @@ namespace DevDriver
             // Initialize the URI server
             if (status == Result::Success)
             {
-                m_pURIServer = DD_NEW(URIProtocol::URIServer, m_createInfo.allocCb)(this);
+                m_pURIServer = DD_NEW(URIProtocol::URIServer, m_allocCb)(this);
                 status = (m_pURIServer != nullptr) ? Result::Success : Result::Error;
             }
 
@@ -596,8 +600,8 @@ namespace DevDriver
         return status;
     }
 
-    template <class T>
-    Result MessageChannel<T>::Unregister()
+    template <class MsgTransport>
+    Result MessageChannel<MsgTransport>::Unregister()
     {
         if (m_createInfo.createUpdateThread)
         {
@@ -610,7 +614,7 @@ namespace DevDriver
         {
             m_sessionManager.UnregisterProtocolServer(m_pURIServer);
 
-            DD_DELETE(m_pURIServer, m_createInfo.allocCb);
+            DD_DELETE(m_pURIServer, m_allocCb);
             m_pURIServer = nullptr;
         }
 
@@ -621,7 +625,7 @@ namespace DevDriver
         DD_ASSERT(status == Result::Success);
         DD_UNUSED(status);
 
-        if (T::RequiresClientRegistration())
+        if (MsgTransport::RequiresClientRegistration())
         {
             if (m_clientId != kBroadcastClientId)
             {
@@ -640,14 +644,14 @@ namespace DevDriver
         return Disconnect();
     }
 
-    template <class T>
-    inline bool MessageChannel<T>::IsConnected()
+    template <class MsgTransport>
+    inline bool MessageChannel<MsgTransport>::IsConnected()
     {
         return (m_clientId != kBroadcastClientId);
     }
 
-    template <class T>
-    Result MessageChannel<T>::SetStatusFlags(StatusFlags flags)
+    template <class MsgTransport>
+    Result MessageChannel<MsgTransport>::SetStatusFlags(StatusFlags flags)
     {
         Result status = Result::Error;
         if (m_clientId != kBroadcastClientId)
@@ -726,14 +730,14 @@ namespace DevDriver
         return status;
     }
 
-    template <class T>
-    StatusFlags MessageChannel<T>::GetStatusFlags() const
+    template <class MsgTransport>
+    StatusFlags MessageChannel<MsgTransport>::GetStatusFlags() const
     {
         return m_clientInfoResponse.metadata.status;
     }
 
-    template <class T>
-    Result MessageChannel<T>::CreateMsgThread()
+    template <class MsgTransport>
+    Result MessageChannel<MsgTransport>::CreateMsgThread()
     {
         memset(&m_msgThreadParams, 0, sizeof(m_msgThreadParams));
 
@@ -750,8 +754,8 @@ namespace DevDriver
         return DD_SANITIZE_RESULT(result);
     }
 
-    template <class T>
-    Result MessageChannel<T>::DestroyMsgThread()
+    template <class MsgTransport>
+    Result MessageChannel<MsgTransport>::DestroyMsgThread()
     {
         Result result = Result::Success;
         if (m_msgThread.IsJoinable())
@@ -762,8 +766,8 @@ namespace DevDriver
         return DD_SANITIZE_RESULT(result);
     }
 
-    template <class T>
-    inline Result MessageChannel<T>::Disconnect()
+    template <class MsgTransport>
+    inline Result MessageChannel<MsgTransport>::Disconnect()
     {
         Result result = Result::Success;
         if (m_clientId != kBroadcastClientId)
@@ -775,8 +779,8 @@ namespace DevDriver
         return result;
     }
 
-    template <class T>
-    IProtocolServer *MessageChannel<T>::GetProtocolServer(Protocol protocol)
+    template <class MsgTransport>
+    IProtocolServer *MessageChannel<MsgTransport>::GetProtocolServer(Protocol protocol)
     {
         return m_sessionManager.GetProtocolServer(protocol);
     }

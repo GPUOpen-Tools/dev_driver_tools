@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,8 +23,8 @@
  ******************************************************************************/
 /**
 ***********************************************************************************************************************
-* @file  tcpSocket.h
-* @brief PAL utility collection MsgChannel class declaration.
+* @file  driverControlClient.h
+* @brief Developer Driver Control Client Interface
 ***********************************************************************************************************************
 */
 
@@ -75,7 +75,6 @@ namespace DevDriver
             Result WaitForDriverInitialization(uint32 timeoutInMs);
 
         private:
-            void ResetState() override;
         };
     }
 } // DevDriver

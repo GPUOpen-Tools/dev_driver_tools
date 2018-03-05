@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -306,6 +306,20 @@ namespace DevDriver
         {
 
         };
+
+        // Struct whose ::Value member is equal to true if T is has a standard layout, and false otherwise.
+        template<typename T>
+        struct IsStandardLayout : BoolType<__is_standard_layout(T)>
+        {
+
+        };
+
+        // Struct whose ::Value member is equal to true if T is trivially destructable, and false otherwise.
+        template<typename T>
+        struct IsTriviallyDestructible : BoolType<__has_trivial_destructor(T)>
+        {
+
+        };
 #else
         // Struct whose ::Value member is equal to true if you can cast from T to U, and false otherwise.
         template <class T, class U>
@@ -332,6 +346,20 @@ namespace DevDriver
         // Struct whose ::Value member is equal to true if T is an abstract class, and false otherwise.
         template<typename T>
         struct IsPod : BoolType<std::is_pod<T>::value>
+        {
+
+        };
+
+        // Struct whose ::Value member is equal to true if T is has a standard layout, and false otherwise.
+        template<typename T>
+        struct IsStandardLayout : BoolType<std::is_standard_layout<T>::value>
+        {
+
+        };
+
+        // Struct whose ::Value member is equal to true if T is trivially destructable, and false otherwise.
+        template<typename T>
+        struct IsTriviallyDestructible : BoolType<std::is_trivially_destructible<T>::value>
         {
 
         };

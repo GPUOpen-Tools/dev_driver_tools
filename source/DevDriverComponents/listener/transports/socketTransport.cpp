@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,8 +31,29 @@
 
 namespace DevDriver
 {
-    SocketListenerTransport::SocketListenerTransport(SocketType type, const char *pAddress, uint32 port) :
-        m_socketType(type),
+    // Take a TransportType and find the associated SocketType for the current platform
+    inline static SocketType TransportToSocketType(TransportType type)
+    {
+        SocketType result = SocketType::Unknown;
+        switch (type)
+        {
+#ifndef _WIN32
+        case TransportType::Local:
+            result = SocketType::Local;
+            break;
+#endif
+        case TransportType::Remote:
+            result = SocketType::Udp;
+            break;
+        default:
+            DD_ALERT_REASON("Invalid transport type specified");
+            break;
+        }
+        return result;
+    }
+
+    SocketListenerTransport::SocketListenerTransport(TransportType type, const char *pAddress, uint32 port) :
+        m_socketType(TransportToSocketType(type)),
         m_port(port),
         m_listening(false)
     {
@@ -44,11 +65,12 @@ namespace DevDriver
         {
             Platform::Strncpy(m_hostAddress, "0.0.0.0", sizeof(m_hostAddress));
         }
-        if (type == SocketType::Local)
+
+        if (type == TransportType::Local)
         {
             Platform::Snprintf(m_hostDescription, sizeof(m_hostDescription), "%s", m_hostAddress);
         }
-        else if (type == SocketType::Udp)
+        else if (type == TransportType::Remote)
         {
             Platform::Snprintf(m_hostDescription, sizeof(m_hostDescription), "%s:%u", m_hostAddress, m_port);
         }
@@ -66,7 +88,7 @@ namespace DevDriver
             Disable();
     }
 
-    Result SocketListenerTransport::ReceiveMessage(ConnectionInfo & connectionInfo, MessageBuffer &message, uint32 timeoutInMs)
+    Result SocketListenerTransport::ReceiveMessage(ConnectionInfo& connectionInfo, MessageBuffer& message, uint32 timeoutInMs)
     {
         bool canRead = false;
         bool exceptState = false;
@@ -94,7 +116,7 @@ namespace DevDriver
         return result;
     }
 
-    Result SocketListenerTransport::TransmitMessage(const ConnectionInfo & connectionInfo, const MessageBuffer & message)
+    Result SocketListenerTransport::TransmitMessage(const ConnectionInfo& connectionInfo, const MessageBuffer& message)
     {
         DD_ASSERT(connectionInfo.handle == m_transportHandle);
         Result result = m_clientSocket.SendTo(reinterpret_cast<const void *>(&connectionInfo.data[0]),
@@ -104,7 +126,7 @@ namespace DevDriver
         return result;
     }
 
-    Result SocketListenerTransport::TransmitBroadcastMessage(const MessageBuffer & message)
+    Result SocketListenerTransport::TransmitBroadcastMessage(const MessageBuffer& message)
     {
         DD_UNUSED(message);
 

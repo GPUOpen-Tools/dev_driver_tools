@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,12 +33,10 @@
 #include "gpuopen.h"
 #include "abstractClientManager.h"
 #if DD_VERSION_SUPPORTS(GPUOPEN_DEPRECATE_LEGACY_KMD_VERSION)
-#include <unordered_set>
+#include "util/hashSet.h"
 #else
-#include <unordered_map>
+#include "util/hashMap.h"
 #endif
-#include <mutex>
-#include <memory>
 #include "ddPlatform.h"
 
 namespace DevDriver
@@ -52,7 +50,7 @@ namespace DevDriver
     class ListenerClientManager : public IClientManager
     {
     public:
-        ListenerClientManager(const ListenerClientManagerInfo& clientManagerInfo);
+        ListenerClientManager(const AllocCb& allocCb, const ListenerClientManagerInfo& clientManagerInfo);
         ~ListenerClientManager();
 
         // TODO: explicit initialize and destroy?
@@ -86,17 +84,17 @@ namespace DevDriver
         };
 #endif
 
-        const ListenerClientManagerInfo             m_clientManagerInfo;
-        bool                                        m_initialized;
-        ClientId                                    m_hostClientId;
-        std::mutex                                  m_clientMutex;
+        const ListenerClientManagerInfo m_clientManagerInfo;
+        bool                            m_initialized;
+        ClientId                        m_hostClientId;
+        Platform::Mutex                 m_clientMutex;
 #if DD_VERSION_SUPPORTS(GPUOPEN_DEPRECATE_LEGACY_KMD_VERSION)
-        std::unordered_set<ClientId>                m_clientInfo;
+        HashSet<ClientId>               m_clientInfo;
 #else
-        std::unordered_map<ClientId, ClientInfo>    m_clientInfo;
-        StatusFlags                                 m_combinedStatusFlags;
+        HashMap<ClientId, ClientInfo>   m_clientInfo;
+        StatusFlags                     m_combinedStatusFlags;
 #endif
-        Platform::Random                            m_rand;
+        Platform::Random                m_rand;
 
 #if !DD_VERSION_SUPPORTS(GPUOPEN_DEPRECATE_LEGACY_KMD_VERSION)
         bool RecalculateClientStatus();

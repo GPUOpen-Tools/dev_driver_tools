@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -74,14 +74,14 @@ namespace DevDriver
 
         ///////////////////////
         // GpuCrashDump Payloads
-        DD_ALIGNED_STRUCT(4) GpuCrashNotifyPayload
+        DD_NETWORK_STRUCT(GpuCrashNotifyPayload, 4)
         {
             uint32 sizeInBytes;
         };
 
         DD_CHECK_SIZE(GpuCrashNotifyPayload, 4);
 
-        DD_ALIGNED_STRUCT(4) GpuCrashAcknowledgePayload
+        DD_NETWORK_STRUCT(GpuCrashAcknowledgePayload, 4)
         {
             bool acceptedCrashDump;
             char padding[3];
@@ -89,21 +89,21 @@ namespace DevDriver
 
         DD_CHECK_SIZE(GpuCrashAcknowledgePayload, 4);
 
-        DD_ALIGNED_STRUCT(4) GpuCrashDataChunkPayload
+        DD_NETWORK_STRUCT(GpuCrashDataChunkPayload, 4)
         {
             uint8 data[kMaxGpuCrashDumpDataChunkSize];
         };
 
         DD_CHECK_SIZE(GpuCrashDataChunkPayload, kMaxGpuCrashDumpDataChunkSize);
 
-        DD_ALIGNED_STRUCT(4) GpuCrashDataSentinelPayload
+        DD_NETWORK_STRUCT(GpuCrashDataSentinelPayload, 4)
         {
             Result result;
         };
 
         DD_CHECK_SIZE(GpuCrashDataSentinelPayload, 4);
 
-        DD_ALIGNED_STRUCT(4) GpuCrashDumpPayload
+        DD_NETWORK_STRUCT(GpuCrashDumpPayload, 4)
         {
             GpuCrashDumpMessage command;
             // pad out to 4 bytes for alignment requirements

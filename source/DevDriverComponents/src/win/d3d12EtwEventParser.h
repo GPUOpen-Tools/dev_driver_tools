@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -95,7 +95,7 @@ namespace DevDriver
         template<bool is32Bit>
         void ProcessWaitQueuePacket(TraceStorage &traceData, PEVENT_RECORD pEvent)
         {
-            using WaitPacket = typename WaitPacketHeader<is32Bit>;
+            using WaitPacket = WaitPacketHeader<is32Bit>;
 
             const char* pBaseAddress = ((const char*)pEvent->UserData);
             const WaitPacket *pHeader = reinterpret_cast<const WaitPacket*>(pBaseAddress);
@@ -116,7 +116,7 @@ namespace DevDriver
         template<bool is32Bit>
         void ProcessSignalQueuePacket(TraceStorage &traceData, PEVENT_RECORD pEvent)
         {
-            using SignalPacket = typename SignalPacketHeader<is32Bit>;
+            using SignalPacket = SignalPacketHeader<is32Bit>;
             const char* pBaseAddress = ((const char*)pEvent->UserData);
             const SignalPacket *pHeader = reinterpret_cast<const SignalPacket*>(pBaseAddress);
             // create event and copy raw time into it
@@ -168,7 +168,7 @@ namespace DevDriver
         template<bool is32Bit>
         void ProcessSyncEndQueuePacket(TraceStorage &traceData, PEVENT_RECORD pEvent)
         {
-            using SyncQueuePacket = typename SyncQueuePacketHeader<is32Bit>;
+            using SyncQueuePacket = SyncQueuePacketHeader<is32Bit>;
             const SyncQueuePacket* pHeader = reinterpret_cast<const SyncQueuePacket*>(pEvent->UserData);
             switch (pHeader->packetType)
             {

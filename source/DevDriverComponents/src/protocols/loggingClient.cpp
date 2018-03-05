@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -86,26 +86,35 @@ namespace DevDriver
             }
         }
 
+        void LoggingClient::SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason)
+        {
+            BaseProtocolClient::SessionTerminated(pSession, terminationReason);
+            // ResetState() dumps all pending log messages. If the server disconnects and the session dies, any
+            // unread log messages will be lost.
+            // @todo: Separate log messages from internal state and allow preservation past session termination.
+            ResetState();
+        }
+
         Result LoggingClient::EnableLogging(LogLevel priority, LoggingCategory categoryMask)
         {
             Result result = Result::Error;
 
             if (IsConnected() && IsIdle())
             {
+                LoggingFilter filter = {};
+                filter.priority = priority;
+                filter.category = categoryMask;
+
                 SizedPayloadContainer container = {};
-                EnableLoggingRequestPayload* pRequestPayload = reinterpret_cast<EnableLoggingRequestPayload*>(container.payload);
-                pRequestPayload->command = LoggingMessage::EnableLoggingRequest;
-                pRequestPayload->filter.priority = priority;
-                pRequestPayload->filter.category = categoryMask;
-                container.payloadSize = sizeof(EnableLoggingRequestPayload);
+                container.CreatePayload<EnableLoggingRequestPayload>(filter);
 
                 result = TransactLoggingPayload(&container);
                 if (result == Result::Success)
                 {
-                    const EnableLoggingResponsePayload* pResponsePayload = reinterpret_cast<const EnableLoggingResponsePayload*>(container.payload);
-                    if (pResponsePayload->command == LoggingProtocol::LoggingMessage::EnableLoggingResponse)
+                    const EnableLoggingResponsePayload& response = container.GetPayload<EnableLoggingResponsePayload>();
+                    if (response.header.command == LoggingProtocol::LoggingMessage::EnableLoggingResponse)
                     {
-                        result = pResponsePayload->result;
+                        result = response.result;
 
                         if (result == Result::Success)
                         {

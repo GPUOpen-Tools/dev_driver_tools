@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -45,6 +45,7 @@ namespace DevDriver
         return (m_state == ClientState::Connected);
     }
 
+#if !DD_VERSION_SUPPORTS(GPUOPEN_SESSION_INTERFACE_CLEANUP_VERSION)
     // Orphans the current session associated with the client object and moves to the disconnected state
     // This function is intended for situations where the external code knows the remote client has disconnected
     // before the message channel subsystem. In this type of situation, orphaning the client instead of using a regular
@@ -54,13 +55,13 @@ namespace DevDriver
     {
         if (!m_pSession.IsNull())
         {
-            m_pSession->OrphanSession();
-            m_pSession->CloseSession(Result::Success);
+            m_pSession->Close(Result::Success);
             m_pSession.Clear();
         }
 
         m_state = ClientState::Disconnected;
     }
+#endif
 
     ClientId BaseProtocolClient::GetRemoteClientId() const
     {
@@ -75,10 +76,11 @@ namespace DevDriver
     {
         if (!m_pSession.IsNull())
         {
-            m_pSession->OrphanSession();
-            m_pSession->CloseSession(Result::Success);
+            m_pSession->Close(Result::Success);
             m_pSession.Clear();
         }
+        // Reset the state to make sure all owned objects are released before destruction.
+        ResetState();
     }
 
     Version BaseProtocolClient::GetSessionVersion() const
@@ -126,9 +128,6 @@ namespace DevDriver
         m_connectResult = terminationReason;
         m_pendingOperationEvent.Signal();
         m_pSession.Clear();
-
-        // Always reset the internal client state after the session is terminated.
-        ResetState();
     }
 
     Result BaseProtocolClient::Connect(ClientId clientId)
@@ -141,19 +140,16 @@ namespace DevDriver
             // Even in the disconnected state. This dead session object should be deleted. It can't
             // be deleted immediately upon termination because other parts of the client code could
             // still be using it.
-            if (!m_pSession.IsNull())
-            {
-                m_pSession.Clear();
+            m_pSession.Clear();
 
-                ResetState();
-            }
+            ResetState();
 
             DD_ASSERT(m_pMsgChannel != nullptr);
 
             m_state = ClientState::Connecting;
             m_pendingOperationEvent.Clear();
 
-            result = m_pMsgChannel->EstablishSession(clientId, this);
+            result = m_pMsgChannel->ConnectProtocolClient(this, clientId);
             if (result == Result::Success)
             {
                 // Only wait on the event if we successfully establish the session. If we fail to establish the
@@ -174,26 +170,17 @@ namespace DevDriver
 
     void BaseProtocolClient::Disconnect()
     {
-        ResetState();
         if (IsConnected())
         {
             m_pendingOperationEvent.Clear();
-            m_pSession->CloseSession(Result::Success);
-            int retries = 20;
+            m_pSession->Shutdown(Result::Success);
             while (!m_pSession.IsNull())
             {
                 // todo - implement more robust timeout system
                 m_pendingOperationEvent.Wait(kDefaultRetryTimeoutInMs);
-                --retries;
-                if (retries < 1)
-                {
-                    // A reference to the session object is not being released and blocking the shutdown process.
-                    // Mark the session as being orphaned.
-                    // See comments in BaseProtocolClient::Orphan() for more details.
-                    Orphan();
-                }
             }
         }
+        ResetState();
     }
 
 } // DevDriver

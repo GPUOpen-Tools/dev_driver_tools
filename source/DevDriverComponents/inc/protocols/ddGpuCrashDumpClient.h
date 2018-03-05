@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -39,7 +39,7 @@ namespace DevDriver
 
     namespace TransferProtocol
     {
-        class LocalBlock;
+        class ServerBlock;
     }
 
     namespace GpuCrashDumpProtocol
@@ -61,8 +61,6 @@ namespace DevDriver
             Result EndGpuCrashDump();
 
         private:
-            void ResetState() override;
-
             uint8* m_pCrashDump;
             uint32 m_crashDumpSize;
             uint32 m_crashDumpBytesSent;

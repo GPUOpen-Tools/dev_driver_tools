@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,15 +26,11 @@
 #include "msgChannel.h"
 #include "ddTransferManager.h"
 
-// String used to identify the client URI service
-static const char* kClientURIServiceName = "client";
-
 namespace DevDriver
 {
     // =====================================================================================================================
     ClientURIService::ClientURIService()
-        : URIProtocol::URIService(kClientURIServiceName)
-        , m_pMsgChannel(nullptr)
+        : m_pMsgChannel(nullptr)
     {
     }
 
@@ -44,8 +40,7 @@ namespace DevDriver
     }
 
     // =====================================================================================================================
-    Result ClientURIService::HandleRequest(
-        URIProtocol::URIRequestContext* pContext)
+    Result ClientURIService::HandleRequest(URIRequestContext* pContext)
     {
         DD_ASSERT(pContext != nullptr);
 
@@ -84,6 +79,10 @@ namespace DevDriver
                 Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Supported Message Bus Version: %u", kMessageVersion);
                 pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
 
+                // Write the client transport type
+                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Transport: %s", m_pMsgChannel->GetTransportName());
+                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+
                 // Write the client id
                 Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Id: %u", static_cast<uint32>(clientId));
                 pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
@@ -114,6 +113,24 @@ namespace DevDriver
 
                 // Only print protocols + status flags in debug builds for now.
 #if !defined(NDEBUG)
+                {
+                    IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(Protocol::Transfer);
+                    if (pServer != nullptr)
+                    {
+                        Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Transfer Protocol Supported Versions: (%u -> %u)", pServer->GetMinVersion(), pServer->GetMaxVersion());
+                        pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                    }
+                }
+
+                {
+                    IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(Protocol::URI);
+                    if (pServer != nullptr)
+                    {
+                        Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient URI Protocol Supported Versions: (%u -> %u)", pServer->GetMinVersion(), pServer->GetMaxVersion());
+                        pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                    }
+                }
+
                 // Write the protocols
                 Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Logging Protocol Support: %u", clientInfo.metadata.protocols.logging);
                 pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
@@ -202,7 +219,7 @@ namespace DevDriver
                 Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Process Id: %u", clientInfo.processId);
                 pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
 
-                pContext->responseDataFormat = URIProtocol::ResponseDataFormat::Text;
+                pContext->responseDataFormat = URIDataFormat::Text;
 
                 result = Result::Success;
             }

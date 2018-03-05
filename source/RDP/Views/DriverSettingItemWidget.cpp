@@ -36,7 +36,7 @@ const static QString s_RESTORE_DEFAULT_SETTING_BUTTON_STYLESHEET(
 );
 
 const static QString s_RESTORE_DEFAULT_SETTING_TOOLTIP("Restore default value");
-const static QString s_RESTORE_DEFAULT_SETTING_ICON(":/images/ResetIcon.svg");
+const static QString s_RESTORE_DEFAULT_SETTING_ICON(":/images/third_party/ionicons/loop.svg");
 const static int s_EDIT_WIDGET_HEIGHT = 20;
 const static QSize s_RESTORE_DEFAULT_SETTING_BUTTON_SIZE = QSize(s_EDIT_WIDGET_HEIGHT, s_EDIT_WIDGET_HEIGHT);
 

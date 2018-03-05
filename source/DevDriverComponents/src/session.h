@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -35,6 +35,8 @@
 #include "util/sharedptr.h"
 #include "protocols/systemProtocols.h"
 #include "protocolSession.h"
+#include "protocolClient.h"
+#include "protocolServer.h"
 
 namespace DevDriver
 {
@@ -42,14 +44,14 @@ namespace DevDriver
 
     enum struct SessionState
     {
-        Unknown = 0,
+        Closed = 0,
+        Listening,
         SynSent,
         SynReceived,
         Established,
         FinWait1,
         Closing,
         FinWait2,
-        Closed,
         Count
     };
 
@@ -62,15 +64,17 @@ namespace DevDriver
         ///
         /// Internal interface for SessionManager
         ///
-        Session(IMsgChannel* pMsgChannel,
-                IProtocolSession* pSessionOwner,
-                SessionProtocol::SessionVersion sessionVersion,
-                Version protocolVersion,
-                SessionId sessionId,
-                ClientId remoteClientId);
+        Session(IMsgChannel* pMsgChannel);
 
-        Result Connect();
-        Result Accept(SessionId remoteSessionId, Sequence sequenceNumber);
+        Result Connect(IProtocolClient& owner,
+                       ClientId remoteClientId,
+                       SessionId sessionId);
+
+        Result BindToServer(IProtocolServer& owner,
+                           ClientId remoteClientId,
+                           SessionProtocol::SessionVersion sessionVersion,
+                           Version protocolVersion,
+                           SessionId sessionId);
 
         void HandleMessage(SharedPointer<Session>& pSession, const MessageBuffer& messageBuffer);
 
@@ -86,9 +90,9 @@ namespace DevDriver
                 if (m_pProtocolOwner != nullptr)
                 {
                     m_pProtocolOwner->SessionTerminated(pSession, Result::EndOfStream);
-                    OrphanSession();
+                    Orphan();
                 }
-                CloseSession(Result::Success);
+                Shutdown(Result::Success);
             }
         }
 
@@ -96,7 +100,7 @@ namespace DevDriver
         {
             return ((m_sessionId == sessionId) &
                 (m_remoteClientId == remoteClientId) &
-                    (m_sessionState < SessionState::Closed));
+                    (m_sessionState != SessionState::Closed));
         }
 
         void Update(const SharedPointer<Session>& pSession)
@@ -108,8 +112,7 @@ namespace DevDriver
             UpdateTimeout();
 
             // Update active sessions for non-clients
-            if ((m_sessionState >= SessionState::Established)
-                && (m_sessionState < SessionState::Closed))
+            if (m_sessionState >= SessionState::Established)
             {
                 if (m_pProtocolOwner != nullptr)
                 {
@@ -117,7 +120,7 @@ namespace DevDriver
                 }
                 else
                 {
-                    CloseSession(Result::Error);
+                    Shutdown(Result::Error);
                 }
             }
 
@@ -128,7 +131,7 @@ namespace DevDriver
                 if (m_pProtocolOwner != nullptr)
                 {
                     m_pProtocolOwner->SessionTerminated(pSession, m_sessionTerminationReason);
-                    OrphanSession();
+                    Orphan();
                 }
             }
         }
@@ -137,32 +140,44 @@ namespace DevDriver
         /// Public ISession interface implementation
         ///
 
-        Result Send(uint32 payloadSizeInBytes, const void* pPayload, uint32 timeoutInMs) override;
-        Result Receive(uint32 payloadSizeInBytes, void* pPayload, uint32* pBytesReceived, uint32 timeoutInMs) override;
-        void   CloseSession(Result reason = Result::Error) override;
-        void   OrphanSession() override;
+        Result Send(uint32 payloadSizeInBytes, const void* pPayload, uint32 timeoutInMs) override final;
+        Result Receive(uint32 payloadSizeInBytes, void* pPayload, uint32* pBytesReceived, uint32 timeoutInMs) override final;
+        void   Shutdown(Result reason) override final;
+        void   Close(Result reason) override final;
 
-        void* SetUserData(void* pUserData) override
+#if !DD_VERSION_SUPPORTS(GPUOPEN_SESSION_INTERFACE_CLEANUP_VERSION)
+        void OrphanSession() override final
+        {
+            Orphan();
+        };
+
+        void CloseSession(Result reason = Result::Error) override final
+        {
+            Shutdown(reason);
+        };
+#endif
+
+        void* SetUserData(void* pUserData) override final
         {
             return Platform::Exchange(m_pSessionUserdata, pUserData);
         }
 
-        void *GetUserData() const override
+        void *GetUserData() const override final
         {
             return m_pSessionUserdata;
         }
 
-        SessionId GetSessionId() const override
+        SessionId GetSessionId() const override final
         {
             return m_sessionId;
         }
 
-        ClientId GetDestinationClientId() const override
+        ClientId GetDestinationClientId() const override final
         {
             return m_remoteClientId;
         }
 
-        Version GetVersion() const override
+        Version GetVersion() const override final
         {
             return m_protocolVersion;
         }
@@ -190,6 +205,10 @@ namespace DevDriver
         WindowSize CalculateCurrentWindowSize();
         bool IsSendWindowEmpty();
         void UpdateSendWindowSize(const MessageBuffer& messageBuffer);
+
+        void Orphan();
+
+        inline void SetState(SessionState newState);
 
         template <WindowSize size = kDefaultWindowSize>
         struct TransmitWindow
@@ -270,7 +289,7 @@ namespace DevDriver
         IProtocolSession*                   m_pProtocolOwner;
         void*                               m_pSessionUserdata;
         const ClientId                      m_clientId;
-        const ClientId                      m_remoteClientId;
+        ClientId                            m_remoteClientId;
         SessionId                           m_sessionId;
         SessionState                        m_sessionState;
         Result                              m_sessionTerminationReason;

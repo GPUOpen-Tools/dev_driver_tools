@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -119,7 +119,7 @@ namespace DevDriver
 
         ///////////////////////
         // Setting Value Structure
-        DD_ALIGNED_STRUCT(4) SettingValue
+        DD_NETWORK_STRUCT(SettingValue, 4)
         {
             union
             {
@@ -138,7 +138,7 @@ namespace DevDriver
 
         ///////////////////////
         // Setting Structure
-        DD_ALIGNED_STRUCT(4) Setting
+        DD_NETWORK_STRUCT(Setting, 4)
         {
             char description[kLargeStringSize];
             char name[kSmallStringSize];
@@ -152,7 +152,7 @@ namespace DevDriver
 
         ///////////////////////
         // Category Structure
-        DD_ALIGNED_STRUCT(4) SettingCategory
+        DD_NETWORK_STRUCT(SettingCategory, 4)
         {
             char name[kSmallStringSize];
             int32 parentIndex;
@@ -162,32 +162,32 @@ namespace DevDriver
 
         ///////////////////////
         // Payloads
-        DD_ALIGNED_STRUCT(4) QueryNumSettingsResponsePayload
+        DD_NETWORK_STRUCT(QueryNumSettingsResponsePayload, 4)
         {
             uint32 numSettings;
         };
         DD_CHECK_SIZE(QueryNumSettingsResponsePayload, 4);
 
-        DD_ALIGNED_STRUCT(4) QuerySettingsNumResponsePayload
+        DD_NETWORK_STRUCT(QuerySettingsNumResponsePayload, 4)
         {
             uint32 numSettings;
         };
         DD_CHECK_SIZE(QuerySettingsNumResponsePayload, 4);
 
-        DD_ALIGNED_STRUCT(4) QuerySettingsDataResponsePayload
+        DD_NETWORK_STRUCT(QuerySettingsDataResponsePayload, 4)
         {
             Setting setting;
         };
 
         DD_CHECK_SIZE(QuerySettingsDataResponsePayload, 456);
 
-        DD_ALIGNED_STRUCT(4) QuerySettingRequestPayload
+        DD_NETWORK_STRUCT(QuerySettingRequestPayload, 4)
         {
             char name[kSmallStringSize];
         };
         DD_CHECK_SIZE(QuerySettingRequestPayload, 64);
 
-        DD_ALIGNED_STRUCT(4) QuerySettingResponsePayload
+        DD_NETWORK_STRUCT(QuerySettingResponsePayload, 4)
         {
             Setting setting;
             // todo: replace this with something that is more verbose at a later date
@@ -199,7 +199,7 @@ namespace DevDriver
 
         DD_CHECK_SIZE(QuerySettingResponsePayload, 460);
 
-        DD_ALIGNED_STRUCT(4) SetSettingRequestPayload
+        DD_NETWORK_STRUCT(SetSettingRequestPayload, 4)
         {
             char name[kSmallStringSize];
             SettingValue value;
@@ -207,7 +207,7 @@ namespace DevDriver
 
         DD_CHECK_SIZE(SetSettingRequestPayload, 128);
 
-        DD_ALIGNED_STRUCT(4) SetSettingResponsePayload
+        DD_NETWORK_STRUCT(SetSettingResponsePayload, 4)
         {
             // todo: replace this with something that is more verbose at a later date
             //       avoided for the time being as it would cause a breaking API change
@@ -218,28 +218,28 @@ namespace DevDriver
 
         DD_CHECK_SIZE(SetSettingResponsePayload, 4);
 
-        DD_ALIGNED_STRUCT(4) QueryNumCategoriesResponsePayload
+        DD_NETWORK_STRUCT(QueryNumCategoriesResponsePayload, 4)
         {
             uint32 numCategories;
         };
 
         DD_CHECK_SIZE(QueryNumCategoriesResponsePayload, 4);
 
-        DD_ALIGNED_STRUCT(4) QueryCategoriesNumResponsePayload
+        DD_NETWORK_STRUCT(QueryCategoriesNumResponsePayload, 4)
         {
             uint32 numCategories;
         };
 
         DD_CHECK_SIZE(QueryCategoriesNumResponsePayload, 4);
 
-        DD_ALIGNED_STRUCT(4) QueryCategoriesDataResponsePayload
+        DD_NETWORK_STRUCT(QueryCategoriesDataResponsePayload, 4)
         {
             SettingCategory category;
         };
 
         DD_CHECK_SIZE(QueryCategoriesDataResponsePayload, 68);
 
-        DD_ALIGNED_STRUCT(4) SettingsPayload
+        DD_NETWORK_STRUCT(SettingsPayload, 4)
         {
             SettingsMessage command;
             // pad out to 4 bytes for alignment requirements

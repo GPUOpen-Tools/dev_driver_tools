@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -41,15 +41,14 @@ namespace DevDriver
     public:
         virtual ~BaseProtocolServer();
 
-        Protocol GetProtocol() const override { return m_protocol; };
-        SessionType GetType() const override { return SessionType::Server; };
-        Version GetMinVersion() const override { return m_minVersion; };
-        Version GetMaxVersion() const override { return m_maxVersion; };
+        Protocol GetProtocol() const override final { return m_protocol; };
+        SessionType GetType() const override final { return SessionType::Server; };
+        Version GetMinVersion() const override final { return m_minVersion; };
+        Version GetMaxVersion() const override final { return m_maxVersion; };
 
-        bool GetSupportedVersion(Version minVersion, Version maxVersion, Version * version) const override;
+        bool GetSupportedVersion(Version minVersion, Version maxVersion, Version * version) const override final;
 
-        void Finalize() override;
-
+        virtual void Finalize() override;
     protected:
         BaseProtocolServer(IMsgChannel* pMsgChannel, Protocol protocol, Version minVersion, Version maxVersion);
 

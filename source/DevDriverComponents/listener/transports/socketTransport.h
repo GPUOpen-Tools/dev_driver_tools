@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,7 +31,7 @@
 #pragma once
 
 #include "abstractListenerTransport.h"
-#include "../src/socket.h"
+#include "../src/ddSocket.h"
 #include "../transportThread.h"
 
 namespace DevDriver
@@ -43,7 +43,7 @@ namespace DevDriver
     class SocketListenerTransport : public IListenerTransport
     {
     public:
-        SocketListenerTransport(SocketType type, const char *pAddress, uint32 port);
+        SocketListenerTransport(TransportType type, const char *pAddress, uint32 port);
         ~SocketListenerTransport() override;
 
         Result ReceiveMessage(ConnectionInfo &connectionInfo, MessageBuffer &message, uint32 timeoutInMs) override;

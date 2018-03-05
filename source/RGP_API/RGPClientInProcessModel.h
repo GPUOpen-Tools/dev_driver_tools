@@ -14,6 +14,7 @@
 #include "../inc/protocols/driverControlClient.h"
 
 class RGPClientInProcessModel;
+
 typedef struct
 {
     RGPClientInProcessModel*    m_pContext;

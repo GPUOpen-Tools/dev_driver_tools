@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -54,7 +54,7 @@ namespace DevDriver
     static_assert(static_cast<MessageCode>(SessionMessage::Ack) == 5, "Unexpected SessionMessage::Ack value.");
     static_assert(static_cast<MessageCode>(SessionMessage::Rst) == 6, "Unexpected SessionMessage::Rst value.");
     static_assert(static_cast<MessageCode>(SessionMessage::Count) == 7, "Unexpected SessionMessage::Count value.");
-
+/*
     DD_STATIC_CONST const char* kMessageNames[static_cast<MessageCode>(SessionMessage::Count)] =
     {
         "Unknown",
@@ -65,6 +65,7 @@ namespace DevDriver
         "Ack",
         "Rst",
     };
+*/
 #endif
 
     // We break the SessionId value into two, 16 bit values. These variables make it easier to operate on the bitfield
@@ -110,7 +111,7 @@ namespace DevDriver
     SessionManager::SessionManager(const AllocCb& allocCb)
         : m_clientId(kBroadcastClientId)
         , m_pMessageChannel(nullptr)
-        , m_lastSessionId(0)
+        , m_lastSessionId(kInvalidSessionId)
         , m_sessionMutex()
         , m_sessions(allocCb)
         , m_serverMutex()
@@ -162,7 +163,7 @@ namespace DevDriver
             {
                 auto& pSession = pair.value;
                 DD_ASSERT(pSession.IsNull() == false);
-                pSession->CloseSession(Result::Success);
+                pSession->Shutdown(Result::Success);
             }
 
             m_sessionMutex.Unlock();
@@ -176,30 +177,25 @@ namespace DevDriver
         return Result::Success;
     }
 
-    Result SessionManager::EstablishSession(
-        ClientId         dstClientId,
-        IProtocolClient* pClient)
+    Result SessionManager::EstablishSessionForClient(IProtocolClient& protocolClient,
+                                                     ClientId dstClientId)
     {
-        DD_ASSERT(pClient != nullptr);
         Result result = Result::Error;
-
-        // Create a new sessionRef.
-        // Get a new sessionRef id for the sessionRef.
-        Platform::LockGuard<Platform::Mutex> sessionLock(m_sessionMutex);
-
-        const SessionId sessionId = GetNewSessionId(0);
 
         SharedPointer<Session> pSession =
             SharedPointer<Session>::Create(m_allocCb,
-                                           m_pMessageChannel,
-                                           pClient,
-                                           kSessionProtocolVersion,
-                                           Version(0),
-                                           sessionId,
-                                           dstClientId);
+                                           m_pMessageChannel);
         if (!pSession.IsNull())
         {
-            result = pSession->Connect();
+            // Create a new sessionRef.
+            // Get a new sessionRef id for the sessionRef.
+            Platform::LockGuard<Platform::Mutex> sessionLock(m_sessionMutex);
+
+            const SessionId sessionId = GetNewSessionId(kInvalidSessionId);
+
+            result = pSession->Connect(protocolClient,
+                                       dstClientId,
+                                       sessionId);
             if (result == Result::Success)
             {
                 result = m_sessions.Create(sessionId, pSession);
@@ -264,7 +260,7 @@ namespace DevDriver
             auto& pSession = sessionIter->value;
             DD_ASSERT(pSession.IsNull() == false);
             DD_ASSERT(pSession->GetSessionId() == sessionId);
-            if (pSession->GetSessionState() < SessionState::Closed)
+            if (pSession->GetSessionState() != SessionState::Closed)
             {
                 return pSession;
             }
@@ -282,7 +278,7 @@ namespace DevDriver
 
             if (pSession->GetDestinationClientId() == dstClientId)
             {
-                pSession->CloseSession(Result::NotReady);
+                pSession->Shutdown(Result::NotReady);
             }
         }
     }
@@ -340,27 +336,29 @@ namespace DevDriver
                     {
                         reason = Result::Rejected;
 
-                        // Assuming we made it this far, we attempt to create a sessionRef object.
-                        Platform::LockGuard<Platform::Mutex> sessionLock(m_sessionMutex);
-                        SessionId sessionId = GetNewSessionId(remoteSessionId);
-                        // Create a new local sessionRef.
-
-                        pSession = SharedPointer<Session>::Create(m_allocCb,
-                                                                  m_pMessageChannel,
-                                                                  pServer,
-                                                                  pRequestPayload->sessionVersion,
-                                                                  version,
-                                                                  sessionId,
-                                                                  sourceClientId);
+                        // Create a new session object
+                        pSession = SharedPointer<Session>::Create(m_allocCb, m_pMessageChannel);
                         if (!pSession.IsNull())
                         {
-                            const Result result = m_sessions.Create(sessionId, pSession);
-                            // If insertion failed or the server rejects the sessionRef we close it and clear the
+                            // Assuming we made it this far, generate a new session ID and bind the session to the
+                            // protocol server
+                            Platform::LockGuard<Platform::Mutex> sessionLock(m_sessionMutex);
+                            SessionId sessionId = GetNewSessionId(remoteSessionId);
+                            Result result = pSession->BindToServer(*pServer,
+                                                                  sourceClientId,
+                                                                  pRequestPayload->sessionVersion,
+                                                                  version,
+                                                                  sessionId);
+                            if (result == Result::Success)
+                            {
+                                result = m_sessions.Create(sessionId, pSession);
+                            }
+
+                            // If insertion failed or the server rejects the session we close it and clear the
                             // sessionRef pointer.
                             if ((result != Result::Success) || !pServer->AcceptSession(pSession))
                             {
-                                pSession->OrphanSession();
-                                pSession->CloseSession(Result::Rejected);
+                                pSession->Close(Result::Rejected);
                                 pSession.Clear();
                             }
                         }
@@ -399,7 +397,7 @@ namespace DevDriver
                             m_sessions.Remove(sessionIter);
                             if (m_sessions.Create(remoteSessionId, pSession) != Result::Success)
                             {
-                                pSession->CloseSession(Result::Error);
+                                pSession->Shutdown(Result::Error);
                                 pSession.Clear();
                                 reason = Result::Error;
                             }
@@ -462,7 +460,7 @@ namespace DevDriver
         {
             const uint32 nextId = AtomicIncrement(&m_lastSessionId);
             sessionId = (nextId & kClientSessionIdMask) | remoteInput;
-        } while ((sessionId == 0) || m_sessions.Contains(sessionId));
+        } while ((sessionId == kInvalidSessionId) || m_sessions.Contains(sessionId));
         return sessionId;
     }
 } // DevDriver

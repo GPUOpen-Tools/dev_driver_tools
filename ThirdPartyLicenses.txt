@@ -37,3 +37,10 @@ code any way you wish, private, educational, or commercial. It's free.
 See http:\\ourworld.compuserve.com\homepages\bob_jenkins\evahash.htm
 Use for hash table lookup, or anything where one collision in 2^^32 is
 acceptable. Do NOT use for cryptographic purposes.
+
+CRC32 algorithm:
+----------------
+Copyright (c) 2004-2006 Intel Corporation - All Rights Reserved
+
+This software program is licensed subject to the BSD License,
+available at http://www.opensource.org/licenses/bsd-license.html.

@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,18 +36,24 @@ namespace DevDriver
 {
     class ListenerCore;
 
-    class ListenerURIService : public URIProtocol::URIService
+    // String used to identify the listener URI service
+    DD_STATIC_CONST char kListenerURIServiceName[] = "listener";
+
+    class ListenerURIService : public IService
     {
     public:
         ListenerURIService();
         ~ListenerURIService();
+
+        // Returns the name of the service
+        const char* GetName() const override final { return kListenerURIServiceName; }
 
         // Binds a listener core to the service
         // All requests will be handled using the currently bound listener core
         void BindListenerCore(ListenerCore* pListenerCore) { m_pListenerCore = pListenerCore; }
 
         // Handles an incoming URI request
-        Result HandleRequest(URIProtocol::URIRequestContext* pContext) override;
+        Result HandleRequest(URIRequestContext* pContext) override final;
 
     private:
         // Currently bound listener core

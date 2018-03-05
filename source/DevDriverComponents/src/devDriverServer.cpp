@@ -1,7 +1,7 @@
 /*
  *******************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -47,9 +47,11 @@
 
 namespace DevDriver
 {
-    DevDriverServer::DevDriverServer(const DevDriverServerCreateInfo& createInfo)
-        : m_createInfo(createInfo)
-        , m_pMsgChannel(nullptr)
+    DevDriverServer::DevDriverServer(const AllocCb&          allocCb,
+                                     const ServerCreateInfo& createInfo)
+        : m_pMsgChannel(nullptr)
+        , m_allocCb(allocCb)
+        , m_createInfo(createInfo)
     {
     }
 
@@ -63,16 +65,20 @@ namespace DevDriver
         Result result = Result::Error;
 
 #if defined(DD_WINDOWS)
-        if (m_createInfo.transportCreateInfo.type == TransportType::Local)
+        if (m_createInfo.connectionInfo.type == TransportType::Local)
         {
             using MsgChannelPipe = MessageChannel<WinPipeMsgTransport>;
-            m_pMsgChannel = DD_NEW(MsgChannelPipe, m_createInfo.transportCreateInfo.allocCb)(m_createInfo.transportCreateInfo);
+            m_pMsgChannel = DD_NEW(MsgChannelPipe, m_allocCb)(m_allocCb,
+                                                              m_createInfo,
+                                                              m_createInfo.connectionInfo);
         }
 #else
-        if (m_createInfo.transportCreateInfo.type == TransportType::Local)
+        if (m_createInfo.connectionInfo.type == TransportType::Local)
         {
             using MsgChannelSocket = MessageChannel<SocketMsgTransport>;
-            m_pMsgChannel = DD_NEW(MsgChannelSocket, m_createInfo.transportCreateInfo.allocCb)(m_createInfo.transportCreateInfo);
+            m_pMsgChannel = DD_NEW(MsgChannelSocket, m_allocCb)(m_allocCb,
+                                                                m_createInfo,
+                                                                m_createInfo.connectionInfo);
         }
 #endif
         else
@@ -99,7 +105,7 @@ namespace DevDriver
             if (result != Result::Success)
             {
                 // We failed to initialize so we need to destroy the message channel.
-                DD_DELETE(m_pMsgChannel, m_createInfo.transportCreateInfo.allocCb);
+                DD_DELETE(m_pMsgChannel, m_allocCb);
                 m_pMsgChannel = nullptr;
             }
         }
@@ -111,22 +117,22 @@ namespace DevDriver
         // The driver control protocol must always be finalized first!
         // It contains the code for supporting the HaltOnStart feature that allows tools to configure
         // options before protocol servers are finalized.
-        if (m_createInfo.enabledProtocols.driverControl)
+        if (m_createInfo.servers.driverControl)
         {
             FinalizeProtocol(Protocol::DriverControl);
         }
 
-        if (m_createInfo.enabledProtocols.logging)
+        if (m_createInfo.servers.logging)
         {
             FinalizeProtocol(Protocol::Logging);
         }
 
-        if (m_createInfo.enabledProtocols.settings)
+        if (m_createInfo.servers.settings)
         {
             FinalizeProtocol(Protocol::Settings);
         }
 
-        if (m_createInfo.enabledProtocols.rgp)
+        if (m_createInfo.servers.rgp)
         {
             FinalizeProtocol(Protocol::RGP);
         }
@@ -142,7 +148,7 @@ namespace DevDriver
 
             DestroyProtocols();
 
-            DD_DELETE(m_pMsgChannel, m_createInfo.transportCreateInfo.allocCb);
+            DD_DELETE(m_pMsgChannel, m_allocCb);
             m_pMsgChannel = nullptr;
         }
     }
@@ -183,19 +189,19 @@ namespace DevDriver
     {
         Result result = Result::Success;
 
-        if (m_createInfo.enabledProtocols.logging)
+        if (m_createInfo.servers.logging)
         {
             result = RegisterProtocol<Protocol::Logging>();
         }
-        if (m_createInfo.enabledProtocols.settings)
+        if (m_createInfo.servers.settings)
         {
             result = RegisterProtocol<Protocol::Settings>();
         }
-        if (m_createInfo.enabledProtocols.driverControl)
+        if (m_createInfo.servers.driverControl)
         {
             result = RegisterProtocol<Protocol::DriverControl>();
         }
-        if (m_createInfo.enabledProtocols.rgp)
+        if (m_createInfo.servers.rgp)
         {
             result = RegisterProtocol<Protocol::RGP>();
         }
@@ -204,22 +210,22 @@ namespace DevDriver
 
     void DevDriverServer::DestroyProtocols()
     {
-        if (m_createInfo.enabledProtocols.logging)
+        if (m_createInfo.servers.logging)
         {
             UnregisterProtocol(Protocol::Logging);
         }
 
-        if (m_createInfo.enabledProtocols.settings)
+        if (m_createInfo.servers.settings)
         {
             UnregisterProtocol(Protocol::Settings);
         }
 
-        if (m_createInfo.enabledProtocols.driverControl)
+        if (m_createInfo.servers.driverControl)
         {
             UnregisterProtocol(Protocol::DriverControl);
         }
 
-        if (m_createInfo.enabledProtocols.rgp)
+        if (m_createInfo.servers.rgp)
         {
             UnregisterProtocol(Protocol::RGP);
         }
@@ -267,7 +273,7 @@ namespace DevDriver
         T* pProtocolServer = nullptr;
         if (m_pMsgChannel->GetProtocolServer(protocol) == nullptr)
         {
-            pProtocolServer = DD_NEW(T, m_createInfo.transportCreateInfo.allocCb)(m_pMsgChannel, args...);
+            pProtocolServer = DD_NEW(T, m_allocCb)(m_pMsgChannel, args...);
             result = m_pMsgChannel->RegisterProtocolServer(pProtocolServer);
         }
         return result;
@@ -283,29 +289,26 @@ namespace DevDriver
     Result QueryDevDriverStatus(const TransportType type, StatusFlags* pFlags, HostInfo *pHostInfo)
     {
         Result result = Result::Unavailable;
+
+        // pHostInfo is optional, so we default to local host
+        const HostInfo& hostInfo = (pHostInfo != nullptr) ? *pHostInfo : kDefaultLocalHost;
+
 #if defined(_WIN32)
-        DD_UNUSED(pHostInfo);
         switch (type)
         {
             case TransportType::Local:
-                result = WinPipeMsgTransport::QueryStatus(pFlags, kQueryStatusTimeoutInMs);
+                result = WinPipeMsgTransport::QueryStatus(hostInfo, kQueryStatusTimeoutInMs, pFlags);
                 break;
             // QueryDevDriverStatus only works on non-windows platforms for Remote transport types.
         }
 #else
-
         switch (type)
         {
             case TransportType::Local:
-                result = SocketMsgTransport::QueryStatus(type, pFlags, kQueryStatusTimeoutInMs);
-                break;
-            // QueryDevDriverStatus only works on non-windows platforms for Remote transport types.
-            case TransportType::Remote:
-                result = Result::Error;
-                if (pHostInfo != nullptr)
-                    result = SocketMsgTransport::QueryStatus(type, pFlags, kQueryStatusTimeoutInMs, pHostInfo);
+                result = SocketMsgTransport::QueryStatus(hostInfo, kQueryStatusTimeoutInMs, pFlags);
                 break;
             default:
+                DD_ALERT_REASON("Invalid transport type specified");
                 break;
         }
 #endif
@@ -313,23 +316,24 @@ namespace DevDriver
     }
 #endif
 
-    bool DevDriverServer::IsConnectionAvailable(const TransportType type, uint32 timeout)
+    bool DevDriverServer::IsConnectionAvailable(const HostInfo& hostInfo,
+                                                uint32          timeout)
     {
         // At this time, we only support machine local connections for the driver
         Result result = Result::Unavailable;
-        switch (type)
+        switch (hostInfo.type)
         {
             case TransportType::Local:
 #if !defined(_WIN32)
-                // on non windows platforms we try to use an AF_UNIX socket for communication
-                result = SocketMsgTransport::TestConnection(type, timeout);
+                // On non windows platforms we try to use an AF_UNIX socket for communication
+                result = SocketMsgTransport::TestConnection(hostInfo, timeout);
 #else
                 // Winsock doesn't support AF_UNIX style sockets, so we use a custom named pipe transport instead
-                result = WinPipeMsgTransport::TestConnection(timeout);
+                result = WinPipeMsgTransport::TestConnection(hostInfo, timeout);
 #endif
                 break;
             default:
-                // invalid value passed to the function
+                // Invalid value passed to the function
                 DD_ALERT_REASON("Invalid transport type specified");
                 break;
         }
@@ -341,9 +345,10 @@ namespace DevDriver
         IProtocolServer *pProtocolServer = m_pMsgChannel->GetProtocolServer(protocol);
         if (pProtocolServer != nullptr)
         {
-            Result result = m_pMsgChannel->UnregisterProtocolServer(pProtocolServer);
+            const Result result = m_pMsgChannel->UnregisterProtocolServer(pProtocolServer);
             DD_ASSERT(result == Result::Success);
-            DD_DELETE(pProtocolServer, m_createInfo.transportCreateInfo.allocCb);
+            DD_UNUSED(result);
+            DD_DELETE(pProtocolServer, m_allocCb);
         }
     }
 
@@ -354,4 +359,49 @@ namespace DevDriver
 
         pProtocolServer->Finalize();
     }
+
+#if !DD_VERSION_SUPPORTS(GPUOPEN_CREATE_INFO_CLEANUP_VERSION)
+    DevDriverServer::DevDriverServer(const DevDriverServerCreateInfo& createInfo)
+        : m_pMsgChannel(nullptr)
+        , m_allocCb(createInfo.transportCreateInfo.allocCb)
+        , m_createInfo()
+    {
+        m_createInfo.initialFlags = createInfo.transportCreateInfo.initialFlags;
+        m_createInfo.componentType = createInfo.transportCreateInfo.componentType;
+        m_createInfo.createUpdateThread = createInfo.transportCreateInfo.createUpdateThread;
+        Platform::Strncpy(&m_createInfo.clientDescription[0],
+                          &createInfo.transportCreateInfo.clientDescription[0],
+                          sizeof(m_createInfo.clientDescription));
+        switch (createInfo.transportCreateInfo.type)
+        {
+            case TransportType::Local:
+            {
+                m_createInfo.connectionInfo = kDefaultNamedPipe;
+                break;
+            }
+            default:
+                DD_ALERT_REASON("Invalid transport type specified");
+                break;
+        }
+        m_createInfo.servers = createInfo.enabledProtocols;
+    }
+
+    bool DevDriverServer::IsConnectionAvailable(const TransportType type,
+                                                uint32              timeout)
+    {
+        bool result = false;
+        switch (type)
+        {
+        case TransportType::Local:
+            // On non windows platforms we try to use an AF_UNIX socket for communication
+            result = IsConnectionAvailable(kDefaultNamedPipe, timeout);
+            break;
+        default:
+            // Invalid value passed to the function
+            DD_ALERT_REASON("Invalid transport type specified");
+            break;
+        }
+        return result;
+    }
+#endif
 } // DevDriver
