@@ -13,6 +13,8 @@ endif()
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 include_directories(AFTER)
 
+include_directories(../../../Common/Lib/AMD/ADL/include)
+
 find_package(Qt5 COMPONENTS Core Widgets REQUIRED)
 
 if(WIN32)
@@ -80,10 +82,6 @@ set ( DEVDRIVERSOURCES
  "../DevDriverComponents/src/protocols/settingsServer.cpp"
 )
 
-set (DEVDRIVERMESSAGELIB
- ${CMAKE_SOURCE_DIR}/source/DevDriverComponents/message/lib/$(Configuration)/$(Platform)/message.lib
-)
-
 set( WINDOWS_DD_SOURCES
  "../DevDriverComponents/listener/transports/winPipeTransport.h"
  "../DevDriverComponents/listener/transports/winPipeTransport.cpp"
@@ -112,16 +110,21 @@ set ( SOURCES
  "DevDriverAPI.h"
 )
 
+set (WINDOWS_SOURCES
+ "ADLGetDriverVersion.cpp"
+ "ADLGetDriverVersion.h"
+)
+
 IF(INTERNAL_BUILD)
- set( EXECUTABLE RGP_API-Internal )
+ set( EXECUTABLE DevDriverAPI-Internal )
 ELSE(INTERNAL_BUILD)
- set( EXECUTABLE RGP_API )
+ set( EXECUTABLE DevDriverAPI )
 ENDIF(INTERNAL_BUILD)
 
 # Specify output executable name. For windows, indicate this is a Windows application
 # and not a console application
 IF(WIN32)
- add_library(${EXECUTABLE} SHARED ${SOURCES} ${DEVDRIVERSOURCES} ${WINDOWS_DD_SOURCES})
+ add_library(${EXECUTABLE} SHARED ${SOURCES} ${WINDOWS_SOURCES} ${DEVDRIVERSOURCES} ${WINDOWS_DD_SOURCES})
  include(GenerateExportHeader)
  generate_export_header(${EXECUTABLE})
  IF(INTERNAL_BUILD)

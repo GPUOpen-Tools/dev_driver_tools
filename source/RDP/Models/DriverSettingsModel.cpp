@@ -80,7 +80,6 @@ void DriverSettingsModel::UpdateDriverSettings(const DriverSettingsMap& settings
                 {
                     const DevDriver::SettingsProtocol::Setting& currentSetting = settings.at(settingIndex);
 
-                    const QString settingName(currentSetting.name);
                     pSettingsFile->UpdateSetting(categoryName, currentSetting);
                 }
             }

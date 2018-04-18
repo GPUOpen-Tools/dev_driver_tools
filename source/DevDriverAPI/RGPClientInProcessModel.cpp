@@ -109,9 +109,12 @@ RGPClientInProcessModel::RGPClientInProcessModel() :
     m_pClient(nullptr),
     m_profileCaptured(false),
     m_finished(false),
+    m_requestingShutdown(false),
     m_beginTag(0),
     m_endTag(0)
 {
+    m_beginMarker.clear();
+    m_endMarker.clear();
 }
 
 RGPClientInProcessModel::~RGPClientInProcessModel()
@@ -119,16 +122,20 @@ RGPClientInProcessModel::~RGPClientInProcessModel()
     Finish();
 }
 
-bool RGPClientInProcessModel::Init()
+bool RGPClientInProcessModel::Init(bool rgpEnabled)
 {
     InitDriverProtocols();
-    CreateWorkerThreadToResumeDriverAndCollectRgpTrace();
+    if (rgpEnabled)
+    {
+        CreateWorkerThreadToResumeDriverAndCollectRgpTrace();
+    }
 
     return true;
 }
 
 void RGPClientInProcessModel::Finish()
 {
+    m_requestingShutdown = true;
     if (m_finished == false)
     {
         g_workerThreadMutex.lock();
@@ -354,7 +361,7 @@ bool RGPClientInProcessModel::CollectRgpTrace(
             restoredClocks = SetGPUClockMode(pDriverControlClient, DevDriver::DriverControlProtocol::DeviceClockMode::Default);
         }
 
-        if (requestResult == Result::Success || requestResult == Result::Unavailable) 
+        if (requestResult == Result::Success || requestResult == Result::Unavailable)
         {
             // Only try to write the trace file if the trace executed correctly.
             if (m_profileName.empty())
@@ -391,13 +398,10 @@ bool RGPClientInProcessModel::CollectRgpTrace(
         DbgMsg("Failed to begin profile");
 
         // Looks like tracing failed- Attempt to revert the clock state to what it was originally.
+        restoredClocks = SetGPUClockMode(pDriverControlClient, DevDriver::DriverControlProtocol::DeviceClockMode::Default);
         if (restoredClocks != Result::Success)
         {
-            restoredClocks = SetGPUClockMode(pDriverControlClient, DevDriver::DriverControlProtocol::DeviceClockMode::Default);
-            if (restoredClocks != Result::Success)
-            {
-                DbgMsg("Failed to restore GPU clocks to default after profiling.");
-            }
+            DbgMsg("Failed to restore GPU clocks to default after profiling.");
         }
 
         return false;
@@ -603,10 +607,17 @@ bool RGPClientInProcessModel::ProcessHaltedMessage(DevDriver::ClientId clientId)
 }
 
 //-----------------------------------------------------------------------------
-/// Collect a trace. This function is run in the worker thread to do the
-/// actual frame capture.
+/// Validate if a capture is possible. Checks various capture parameters and
+/// sees if the requested capture features are enabled in the driver or
+/// interface.
+/// If the user requests a particular feature and that feature isn't available
+/// then a capture isn't possible since it doesn't do exactly what the user
+/// wants, even though it may be possible to perform a capture without the
+/// requested feature.
+/// \param requestingFrameTerminators Is the user requesting frame terminators
+/// \return true if a capture is possible, false otherwise
 //-----------------------------------------------------------------------------
-bool RGPClientInProcessModel::CollectTrace()
+bool RGPClientInProcessModel::IsCaptureAllowed(bool requestingFrameTerminators)
 {
     using namespace DevDriver;
     using namespace RGPProtocol;
@@ -617,32 +628,53 @@ bool RGPClientInProcessModel::CollectTrace()
 
     ConnectProtocolClients(m_pClient, m_clientId, pRgpClient, pDriverControlClient);
 
-    bool userMarkerVersion = true;
+    bool userMarkerVersion = false;
 
     // check the protocol trigger marker version. Need to fail if the user has chosen to use
     // trigger markers but the DevDriverTools don't support it
 #ifdef RGP_TRIGGER_MARKERS_VERSION
-    if (pRgpClient->GetSessionVersion() < RGP_TRIGGER_MARKERS_VERSION)
+    if (pRgpClient->GetSessionVersion() >= RGP_TRIGGER_MARKERS_VERSION)
     {
-        userMarkerVersion = false;
+        userMarkerVersion = true;
     }
 #endif
+
+    DisconnectProtocolClients(m_pClient, pRgpClient, pDriverControlClient);
+
+    if (requestingFrameTerminators == true && userMarkerVersion == false)
+    {
+        return false;
+    }
+
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+/// Collect a trace. This function is run in the worker thread to do the
+/// actual frame capture.
+//-----------------------------------------------------------------------------
+void RGPClientInProcessModel::CollectTrace()
+{
+    using namespace DevDriver;
+    using namespace RGPProtocol;
+    using namespace DriverControlProtocol;
+
+    RGPClient*            pRgpClient = nullptr;
+    DriverControlClient*  pDriverControlClient = nullptr;
+
+    ConnectProtocolClients(m_pClient, m_clientId, pRgpClient, pDriverControlClient);
 
     if (pRgpClient != nullptr && pDriverControlClient != nullptr)
     {
         RGPProfileParameters profileParameters = {};
-        if (userMarkerVersion == true)
-        {
-            profileParameters.beginTag = m_beginTag;
-            profileParameters.endTag = m_endTag;
-            profileParameters.pBeginMarker = m_beginMarker.c_str();
-            profileParameters.pEndMarker = m_endMarker.c_str();
-        }
+        profileParameters.beginTag = m_beginTag;
+        profileParameters.endTag = m_endTag;
+        profileParameters.pBeginMarker = m_beginMarker.c_str();
+        profileParameters.pEndMarker = m_endMarker.c_str();
         CollectRgpTrace(pRgpClient, pDriverControlClient, profileParameters);
     }
 
     DisconnectProtocolClients(m_pClient, pRgpClient, pDriverControlClient);
-    return userMarkerVersion;
 }
 
 //-----------------------------------------------------------------------------
@@ -661,7 +693,7 @@ static void WorkerInit(void* pThreadParam)
     IMsgChannel* pMsgChannel = pClient->GetMessageChannel();
     const uint32 kLogDelayInMs = 100;
 
-    while (pMsgChannel->IsConnected() && result == false)
+    while (pMsgChannel->IsConnected() && result == false && pContext->IsRequestingShutdown() == false)
     {
         DevDriver::Result status = pMsgChannel->Receive(message, kLogDelayInMs);
         while (status == DevDriver::Result::Success && !pContext->IsProfileCaptured())
@@ -699,6 +731,8 @@ static void WorkerCapture(void* pThreadParam)
     g_workerThreadMutex.unlock();
 }
 
+// Worker thread function. This is set up at init time, and WorkerInit is called then. Once a capture is triggered,
+// the WorkerCapture() function is called
 void RGPWorkerThreadFunc(void* pThreadParam)
 {
     g_workerThreadMutex.lock();
@@ -729,12 +763,23 @@ void RGPWorkerThreadFunc(void* pThreadParam)
     g_workerThreadMutex.unlock();
 }
 
-void RGPClientInProcessModel::SetTriggerMarkerParams(uint64_t beginTag, uint64_t endTag, const char* beginMarker, const char* endMarker)
+bool RGPClientInProcessModel::SetTriggerMarkerParams(uint64_t beginTag, uint64_t endTag, const char* beginMarker, const char* endMarker)
 {
-    m_beginTag = beginTag;
-    m_endTag = endTag;
-    m_beginMarker = beginMarker;
-    m_endMarker = endMarker;
+    bool requestingFrameTerminators = false;
+
+    if (beginTag != 0 && endTag != 0)
+    {
+        m_beginTag = beginTag;
+        m_endTag = endTag;
+        requestingFrameTerminators = true;
+    }
+    if (beginMarker != nullptr && endMarker != nullptr)
+    {
+        m_beginMarker = beginMarker;
+        m_endMarker = endMarker;
+        requestingFrameTerminators = true;
+    }
+    return requestingFrameTerminators;
 }
 
 bool RGPClientInProcessModel::TriggerCapture(const char* pszCaptureFileName)
@@ -760,6 +805,11 @@ bool RGPClientInProcessModel::CreateWorkerThreadToResumeDriverAndCollectRgpTrace
 {
     m_threadContext.m_pContext = this;
     m_threadContext.m_pClient  = m_pClient;
+
+    // reset the initial state
+    g_workerThreadMutex.lock();
+    g_workerState = STATE_INIT;
+    g_workerThreadMutex.unlock();
 
     if (m_thread.Start(RGPWorkerThreadFunc, (void *)&m_threadContext) != DevDriver::Result::Success)
     {

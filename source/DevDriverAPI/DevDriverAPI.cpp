@@ -6,7 +6,16 @@
 ///  Can be used by applications to take RGP profiles of themselves
 //=============================================================================
 
+#ifdef _WIN32
+#include "ADLGetDriverVersion.h"
+#else
+#include <iostream>
+#include <fstream>
+#include <string>
+#endif
+
 #include <algorithm>
+
 #include "DevDriverAPI.h"
 #include "RGPClientInProcessModel.h"
 
@@ -14,21 +23,28 @@
 
 //-----------------------------------------------------------------------------
 /// Initialization function. To be called before initializing the device.
-/// \param initOptions A structure of type DevDriverInitOptions containing
-///  the initialization parameters
+/// \param featureList An array of DevDriverFeatures structures containing
+///  a list of features to be enabled
+/// \param featureCount The number of features in the list
 /// \param pOutHandle A returned handle to the DevDriverAPI context.
 /// \return DEV_DRIVER_STATUS_SUCCESS if successful, or a DevDriverStatus error
 ///  code if not. If this function fails, pOutHandle will be unchanged.
 //-----------------------------------------------------------------------------
 static DevDriverStatus DEV_DRIVER_API_CALL
-Init(const DevDriverOptions initOptions[], int32_t optionsCount, DevDriverAPIContext* pOutHandle)
+Init(const DevDriverFeatures featureList[], uint32_t featureCount, DevDriverAPIContext* pOutHandle)
 {
-    for (int32_t loop = 0; loop < optionsCount; loop++)
+    bool rgpEnabled = false;
+
+    for (uint32_t loop = 0; loop < featureCount; loop++)
     {
-        DevDriverOption option = initOptions[loop].shared.m_optionBase.m_option;
-        switch (option)
+        DevDriverFeature feature = featureList[loop].m_option;
+        switch (feature)
         {
-        case DEV_DRIVER_OPTION_ENABLE_RGP_PROTOCOL:
+        case DEV_DRIVER_FEATURE_ENABLE_RGP:
+            rgpEnabled = true;
+            break;
+
+        default:
             break;
         }
     }
@@ -37,7 +53,7 @@ Init(const DevDriverOptions initOptions[], int32_t optionsCount, DevDriverAPICon
 
     if (pHandle != nullptr)
     {
-        if (pHandle->Init() == true)
+        if (pHandle->Init(rgpEnabled) == true)
         {
             *pOutHandle = reinterpret_cast<DevDriverAPIContext>(pHandle);
             return DEV_DRIVER_STATUS_SUCCESS;
@@ -92,8 +108,15 @@ TriggerCapture(DevDriverAPIContext handle, const RGPProfileOptions* const profil
     if (handle != nullptr)
     {
         RGPClientInProcessModel* pObj = reinterpret_cast<RGPClientInProcessModel*>(handle);
-        pObj->SetTriggerMarkerParams(profileOptions->m_beginFrameTerminatorTag, profileOptions->m_endFrameTerminatorTag,
+        bool requestingFrameTerminators = pObj->SetTriggerMarkerParams(profileOptions->m_beginFrameTerminatorTag, profileOptions->m_endFrameTerminatorTag,
                                      profileOptions->m_pBeginFrameTerminatorString, profileOptions->m_pEndFrameTerminatorString);
+
+        bool captureAllowed = pObj->IsCaptureAllowed(requestingFrameTerminators);
+        if (captureAllowed == false)
+        {
+            return DEV_DRIVER_STATUS_INVALID_PARAMETERS;
+        }
+
         bool triggered = pObj->TriggerCapture(profileOptions->m_pProfileFilePath);
         if (triggered == true)
         {
@@ -159,6 +182,122 @@ GetProfileName(DevDriverAPIContext handle, const char** ppOutProfileName)
     }
 }
 
+#ifndef _WIN32
+//-----------------------------------------------------------------------------
+/// Convert a string to an int. Continue parsing the string until an non-digit
+/// is found.
+/// \param pString Reference to a pointer to a string to parse. The new value
+///  of the pointer is modified in the calling function
+/// \return The integer value found in the string. If no integer value is found
+///  0 is returned.
+//-----------------------------------------------------------------------------
+static unsigned int ToInt(const char* &pString)
+{
+    unsigned int value = 0;
+    while (*pString >= '0' && *pString <= '9')
+    {
+        value *= 10;
+        value += *pString++ - '0';
+    }
+    return value;
+}
+#endif
+
+//-----------------------------------------------------------------------------
+/// Get the video driver version number.
+/// indirectly returns the major and minor version numbers in the parameters
+/// \param outMajorVersion The major version number returned
+/// \param outMinorVersion The minor version number returned
+/// \return DEV_DRIVER_STATUS_SUCCESS if successful, or a DevDriverStatus error
+///  code if not. If an error is returned, the version nunbers passed in are
+///  unmodified.
+//-----------------------------------------------------------------------------
+static DevDriverStatus DEV_DRIVER_API_CALL
+GetDriverVersion(DevDriverAPIContext handle, unsigned int& outMajorVersion, unsigned int& outMinorVersion)
+{
+    if (handle == nullptr)
+    {
+        return DEV_DRIVER_STATUS_NULL_POINTER;
+    }
+
+    bool result = false;
+    unsigned int subMinorVer = 0;
+#ifdef _WIN32
+    result = ADLGetDriverVersion(outMajorVersion, outMinorVersion, subMinorVer);
+#else
+    const int sysret = system("modinfo amdgpu | grep version > version.txt");
+    if (sysret != 0)
+    {
+        return DEV_DRIVER_STATUS_ERROR;
+    }
+
+    std::string lineString;
+    std::ifstream inFile;
+    const char* versionFile = "version.txt";
+    inFile.open(versionFile);
+    if (inFile.is_open())
+    {
+        do
+        {
+            getline(inFile, lineString);
+            size_t pos = 0;
+            const char* searchString = "version:";
+            const size_t searchStringLength = strlen(searchString);
+
+            // look for all instances of the search string and only consider ones which are longer than
+            // the search string. These strings should have a version number on the end. The complete version
+            // string should look something like:
+            // version:        18.10.0.1
+            pos = lineString.find(searchString, pos);
+            if (pos == 0)
+            {
+                const char* pVersion = lineString.c_str();
+                pVersion += searchStringLength;
+
+                // skip spaces
+                while (*pVersion == ' ')
+                {
+                    pVersion++;
+                }
+
+                int majVer = 0;
+                int minVer = 0;
+
+                // get the major version number
+                majVer = ToInt(pVersion);
+
+                DD_ASSERT(pVersion[0] == '.');
+
+                // skip the delimiter
+                pVersion++;
+
+                // get the minor version
+                minVer = ToInt(pVersion);
+
+                outMajorVersion = majVer;
+                outMinorVersion = minVer;
+                result = true;
+            }
+        }
+        while (lineString.length() > 0 && result == false);
+        inFile.close();
+    }
+
+    // remove the file
+    remove(versionFile);
+
+#endif
+
+    if (result == true)
+    {
+        return DEV_DRIVER_STATUS_SUCCESS;
+    }
+    else
+    {
+        return DEV_DRIVER_STATUS_ERROR;
+    }
+}
+
 //-----------------------------------------------------------------------------
 /// Get the function table
 /// \param pAprTableOut Pointer to an array to receive the list of function
@@ -197,6 +336,8 @@ DevDriverGetFuncTable(void* pApiTableOut)
     apiTable.TriggerRgpProfile     = TriggerCapture;
     apiTable.IsRgpProfileCaptured  = IsProfileCaptured;
     apiTable.GetRgpProfileName     = GetProfileName;
+
+    apiTable.GetDriverVersion      = GetDriverVersion;
 
     // only copy the functions supported by the incoming requested library
     memcpy(pApiTable, &apiTable, apiTable.minorVersion);

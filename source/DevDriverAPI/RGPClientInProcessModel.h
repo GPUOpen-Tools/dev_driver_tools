@@ -35,16 +35,18 @@ public:
     RGPClientInProcessModel();
     ~RGPClientInProcessModel();
 
-    bool Init();
+    bool Init(bool rgpEnabled);
     void Finish();
 
     bool IsProfileCaptured() const { return m_profileCaptured; }
+    bool IsRequestingShutdown() const { return m_requestingShutdown; }
     const char* GetProfileName() const { return m_profileName.c_str(); }
 
-    void SetTriggerMarkerParams(uint64_t beginTag, uint64_t endTag, const char* beginMarker, const char* endMarker);
+    bool SetTriggerMarkerParams(uint64_t beginTag, uint64_t endTag, const char* beginMarker, const char* endMarker);
 
     bool TriggerCapture(const char* pszCaptureFileName);
-    bool CollectTrace();
+    bool IsCaptureAllowed(bool requestingFrameTerminators);
+    void CollectTrace();
 
     bool ProcessHaltedMessage(DevDriver::ClientId clientId);
 
@@ -95,6 +97,7 @@ private:
     DevDriver::ClientId                                     m_clientId;             ///< The current client Id
     bool                                                    m_profileCaptured;      ///< Has a profile been captured
     bool                                                    m_finished;             ///< Has Finished() been called. Ensure it's only called once
+    std::atomic<bool>                                       m_requestingShutdown;   ///< The application is requesting shutdown, so exit worker thread loops
 
     uint64_t                                                m_beginTag;             ///< The begin tag name
     uint64_t                                                m_endTag;               ///< The end tag name

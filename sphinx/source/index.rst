@@ -6,7 +6,7 @@ by developers to optimize DirectX12 and Vulkan applications for AMD GCN
 graphics hardware. The suite is comprised of the following software:
 
 -  **Radeon Developer Mode Driver** – This is shipped as part of the AMD
-   public Crimson driver and supports the developer mode features
+   public driver and supports the developer mode features
    required for profiling and debugging.
 
 -  **Radeon Developer Service (RDS)** – A system tray application that
@@ -418,6 +418,15 @@ a. If “Cancel” was previously clicked in the above step during the first
 a. Alternatively, disable the Windows Firewall entirely will also allow
    RDS to be connected to.
 
+   **NOTE** The Windows firewall alert in no way indicates that the Radeon
+   Developer tools are trying to communicate to an AMD server over the
+   internet. The Radeon Developer tools do not attempt to connect to a remote
+   AMD server of any description and do not send personal or system information
+   over remote connections. The Radeon Developer Panel needs to communicate
+   with the Radeon Developer Service, which may or may not be on the same
+   machine, and a connection needs to be made between the two (normally via a
+   socket).
+ 
 Disabling Linux Firewall
 ------------------------
 

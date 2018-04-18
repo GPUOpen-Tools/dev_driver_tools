@@ -319,8 +319,9 @@ void RGPTraceModel::OnExecuteTraceFinished(DevDriver::Result result, const RgpTr
     }
     else
     {
-        QString resultString = ToolUtil::GetResultString(result);
+        const QString resultString = ToolUtil::GetResultString(result);
         RDPUtil::DbgMsg("[RDP] Failed to finish executing profile with code '%s'.", resultString.toStdString().c_str());
+        RDPUtil::ShowNotification(gs_RGP_PROFILE_FAILED_TITLE, gs_RGP_PROFILE_FAILED_ERROR.arg(resultString), NotificationWidget::Button::Ok);
 
         // The trace failed to finish writing correctly- but why?
         const TraceContext& traceContext = m_pRequestWorker->GetTraceContext();

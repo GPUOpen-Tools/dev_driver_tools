@@ -47,7 +47,7 @@ Q_DECLARE_METATYPE(RgpTraceFileInfo);
 struct TraceContext
 {
     QFile* pTraceFile;                          ///< The file handle used to write the trace to disk.
-    size_t totalTraceSizeInBytes;               ///< The final total size of the RGP trace file in bytes.
+    DevDriver::uint64 totalTraceSizeInBytes;    ///< The final total size of the RGP trace file in bytes.
     size_t totalReceivedSize;                   ///< The total size of the trace received thus far.
     size_t lastChunkReceivedSize;               ///< The size of the last received chunk.
     size_t bytesPerSec;                         ///< The last computed receive rate in MB.

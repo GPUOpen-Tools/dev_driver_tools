@@ -150,6 +150,7 @@ static const QString gs_RECENT_TRACE_CONTEXT_MENU_DELETE_TEXT       = "Delete pr
 static const QString gs_RGP_EXE_DIALOG_TITLE                        = "Radeon GPU Profiler missing";
 static const QString gs_RGP_PROFILE_FAILED_TITLE                    = "Failed to write profile";
 static const QString gs_RGP_PROFILE_FAILED_NO_SPACE_TEXT            = "Not enough disk space in target directory to write profile.";
+static const QString gs_RGP_PROFILE_FAILED_ERROR                    = "Failed to obtain profile with code '%1'.";
 static const QString gs_RGP_TRACE_FILE_MISSING_TEXT                 = "Failed to open profile in Radeon GPU Profiler, as the file cannot be found.";
 static const QString gs_RGP_TRACE_FILE_MISSING_FILE_BROWSER_FAILED  = "Failed to open profile in file system, as the file cannot be found.";
 static const QString gs_RGP_EXE_MISSING_MESSAGE                     = "The Radeon GPU Profiler executable cannot be found at \"%1\". Do you want to revert to the default RGP path?";

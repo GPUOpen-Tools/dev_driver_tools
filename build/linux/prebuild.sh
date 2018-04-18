@@ -33,11 +33,10 @@ for config in Debug Release ; do
 
     cp -rf ../../qt.conf .
 
-    # make the RGP_API directories
-    mkdir -p RGP_API
-    mkdir -p RGP_API/include
-    mkdir -p RGP_API/lib
-    cp -rf ../../../source/RGP_API/RGP_API.h RGP_API/include
+    # make the DevDriverAPI directories
+    mkdir -p DevDriverAPI
+    mkdir -p DevDriverAPI/include
+    mkdir -p DevDriverAPI/lib
 
     # copy Qt runtime (not on mac for now)
     if [[ `uname` != "Darwin" ]]; then
@@ -65,5 +64,4 @@ for config in Debug Release ; do
     fi
     popd
 done
-
 

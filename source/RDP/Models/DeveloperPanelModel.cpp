@@ -267,7 +267,7 @@ void DeveloperPanelModel::AddClientId(DevDriver::ClientId srcClientId)
 //-----------------------------------------------------------------------------
 void DeveloperPanelModel::AddClientInfo(DevDriver::ClientId srcClientId, const QString& processName, DevDriver::ProcessId processId, const QString& clientDescription)
 {
-    RDPUtil::DbgMsg("[RDP] Processing halted client with id %u: %s:%llu - %s", srcClientId, processName.toStdString().c_str(), processId, clientDescription.toStdString().c_str());
+    RDPUtil::DbgMsg("[RDP] Processing halted client with id %u: %s:%u - %s", srcClientId, processName.toStdString().c_str(), processId, clientDescription.toStdString().c_str());
 
     // Create a ProcessInfoModel with the process info, and then update with the ClientId it's using.
     ProcessInfoModel processInfo(processName, clientDescription, processId);
