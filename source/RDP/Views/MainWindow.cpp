@@ -1,5 +1,5 @@
 //=============================================================================
-/// Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+/// Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
 /// \author AMD Developer Tools Team
 /// \file
 /// \brief  The main window for the Radeon Developer Panel.
@@ -41,6 +41,11 @@
 #include "EmptyDriverSettingsView.h"
 #include "SetupTargetApplicationView.h"
 #include "ClocksView.h"
+
+#ifdef _WIN32
+#include "../DevDriverAPI/ADLGetDriverVersion.h"
+#include "adl_sdk.h"
+#endif
 
 /// Enumeration of all MainWindow tab Id's.
 enum TabID
@@ -111,6 +116,8 @@ MainWindow::MainWindow(QWidget* pParent) :
     InitializeInterfaceAndSettings();
 
     ToggleConnectedTabs(false);
+
+    DisplayDriverWarningMessage();
 }
 
 //-----------------------------------------------------------------------------
@@ -535,7 +542,7 @@ void MainWindow::OnLostRDSConnection()
 void MainWindow::OnHelpButtonPressed()
 {
     // Open help file
-    QUrl fileUrl = QUrl::fromLocalFile(QCoreApplication::applicationDirPath() + "/docs/help/rdp/html/index.html");
+    QUrl fileUrl = QUrl::fromLocalFile(QCoreApplication::applicationDirPath() + gs_HELP_FILE);
     QDesktopServices::openUrl(fileUrl);
 }
 
@@ -683,4 +690,25 @@ void MainWindow::BringToForeground()
     showNormal();
     // Note: On Linux, setWindowState(Qt::WindowActive) fails to restore window and also prevents raise() from bring the window to the foreground.
 #endif // Q_OS_WIN
+}
+
+//-----------------------------------------------------------------------------
+/// Show a warning window with RDC interop limitations
+//-----------------------------------------------------------------------------
+void MainWindow::DisplayDriverWarningMessage()
+{
+#ifdef _WIN32
+    unsigned int majorVersion = 0;
+    unsigned int minorVersion = 0;
+    unsigned int subminorVersion = 0;
+
+    bool result = ADLGetDriverVersion(majorVersion, minorVersion, subminorVersion);
+    if (result == true)
+    {
+        if (majorVersion == 18 && minorVersion == 10 && subminorVersion == 1)
+        {
+            RDPUtil::ShowNotification(gs_DRIVER_WARNING_TITLE, gs_DRIVER_WARNING_TEXT, NotificationWidget::Button::Ok);
+        }
+    }
+#endif
 }

@@ -70,6 +70,7 @@ private slots:
     void OnLogText(const QString& str);
     void OnHelpButtonPressed();
     void OnLostRDSConnection();
+    void DisplayDriverWarningMessage();
 
 private:
     void BringToForeground();

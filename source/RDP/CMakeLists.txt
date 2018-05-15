@@ -14,6 +14,8 @@ endif()
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 include_directories(AFTER)
 
+include_directories(../../../Common/Lib/AMD/ADL/include)
+
 find_package(Qt5 COMPONENTS Core Widgets REQUIRED)
 
 if(WIN32)
@@ -73,6 +75,8 @@ set( WINDOWS_SOURCES
  "../../images/X.png"
  "Windows/RDP.rc"
  "Windows/resource.h"
+ "../DevDriverAPI/ADLGetDriverVersion.cpp"
+ "../DevDriverAPI/ADLGetDriverVersion.h"
 )
 
 set( LINUX_DD_SOURCES

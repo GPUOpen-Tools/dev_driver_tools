@@ -28,6 +28,9 @@ public:
     ~SetupTargetApplicationView();
     SetupTargetApplicationModel* GetSetupTargetApplicationModel();
 
+    void dragEnterEvent(QDragEnterEvent* pEvent);
+    void dropEvent(QDropEvent* pEvent);
+
     bool AddExecutableToList(const QString& executableFilename);
 
 signals:

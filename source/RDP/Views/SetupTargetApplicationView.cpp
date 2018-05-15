@@ -10,6 +10,9 @@
 #include <QFontMetrics>
 #include <QGridLayout>
 #include <QSpacerItem>
+#include <QDropEvent>
+#include <QDragEnterEvent>
+#include <QMimeData>
 
 #include "SetupTargetApplicationView.h"
 #include "ui_SetupTargetApplicationView.h"
@@ -63,6 +66,8 @@ SetupTargetApplicationView::SetupTargetApplicationView(DeveloperPanelModel* pPan
     // Update the model.
     m_pSetupTargetApplicationModel->Update();
     AdjustTableColumns();
+
+    setAcceptDrops(true);
 }
 
 //-----------------------------------------------------------------------------
@@ -306,4 +311,43 @@ void SetupTargetApplicationView::OnProfilerInUseWarning(const ProcessInfoModel& 
     // Put up an warning message
     QString message = QString(gs_PROFILER_ALREADY_IN_USE_MSG).arg(processInfo.GetProcessName().toStdString().c_str()).arg(processInfo.GetProcessId());
     RDPUtil::ShowNotification(gs_PROFILER_ALREADY_IN_USE_TITLE, message, NotificationWidget::Button::Ok);
+}
+
+//-----------------------------------------------------------------------------
+/// Handle a drag enter event
+/// \param pEvent drag enter event
+//-----------------------------------------------------------------------------
+void SetupTargetApplicationView::dragEnterEvent(QDragEnterEvent* pEvent)
+{
+    if (pEvent != nullptr)
+    {
+        if (pEvent->mimeData()->hasUrls())
+        {
+            pEvent->setDropAction(Qt::LinkAction);
+            pEvent->accept();
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------
+/// Handle a drag-n-drop event
+/// \param pEvent drop event
+//-----------------------------------------------------------------------------
+void SetupTargetApplicationView::dropEvent(QDropEvent* pEvent)
+{
+    if (pEvent != nullptr)
+    {
+        const uint32_t numUrls = pEvent->mimeData()->urls().size();
+
+        if (numUrls == 1)
+        {
+            const QString potentialExePath = pEvent->mimeData()->urls().at(0).toLocalFile();
+
+            QFileInfo executable(potentialExePath);
+            if (executable.exists() && executable.isFile())
+            {
+                AddExecutableToList(potentialExePath);
+            }
+        }
+    }
 }

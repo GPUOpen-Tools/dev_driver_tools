@@ -46,6 +46,9 @@ static const QString gs_CONNECTION_STATUS_DISCONNECTED_TEXT         = "You are n
 static const QString gs_CONNECTION_STATUS_ATTEMPT_TEXT              = "Attempting to establish a connection to the Radeon Developer Service running at %1";
 static const QString gs_CONNECTION_STATUS_CONNECTED_TEXT            = "You are connected to the Radeon Developer Service running at %1";
 
+// Help file locations
+static const QString gs_HELP_FILE                                   = "/docs/help/rdp/html/index.html";
+
 // Host Connection interface strings.
 static const QString gs_DEFAULT_SERVER_HOST                         = gs_LOCAL_HOST;
 static const QString gs_CONNECTION_SETTINGS_CONNECT_BUTTON_TEXT     = "Connect";
@@ -167,6 +170,8 @@ static const QString gs_RGP_DIR_NOT_WRITABLE_TITLE                  = "Target di
 static const QString gs_RGP_DIR_NOT_WRITABLE_MESSAGE                = "Directory \"%1\" is not writable.";
 static const QString gs_PROFILING_NOT_SUPPORTED_TITLE               = "GPU hardware not supported.";
 static const QString gs_PROFILING_NOT_SUPPORTED_TEXT                = "Unsupported hardware, refer to the documentation for the list of supported GPUs.";
+static const QString gs_DRIVER_WARNING_TITLE                        = "Driver incompatibility warning";
+static const QString gs_DRIVER_WARNING_TEXT                         = "The currently installed video driver is known to produce system instability when capturing RGP profiles.\n\nIt is strongly recommended for users to update to AMD Driver 18.5.1, or newer, to avoid this problem.\nhttps://support.amd.com/en-us/download";
 
 // Description strings that can be used to identify the AMD UMD running within a target process.
 static const QString gs_UNKNOWN_API                 = "Unknown";
