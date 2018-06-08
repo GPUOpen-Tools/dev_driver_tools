@@ -1,6 +1,6 @@
 # build the targets
 cd output/Release
-make
+make -j5
 cd ../..
 
 # Tell RGP to look in the local lib path rather than the Qt install path
