@@ -26,8 +26,9 @@ SingleApplicationInstance* s_pAppInstance = nullptr;
 //--------------------------------------------------------------
 /// Handler that gets called when the SIGTERM signal is caught
 //--------------------------------------------------------------
-void SigHandler()
+void SigHandler(int signal)
 {
+    DD_UNUSED(signal);
     if (s_pAppInstance != nullptr)
     {
         s_pAppInstance->exit();
@@ -76,8 +77,8 @@ int main(int argc, char* argv[])
 #ifndef Q_OS_WIN
     // install signal handlers on Linux
     SignalHandler signalHandler;
-    signalHandler.AddHandler((__sighandler_t)SigHandler, SIGTERM);
-    signalHandler.AddHandler((__sighandler_t)SigHandler, SIGINT);
+    signalHandler.AddHandler(SigHandler, SIGTERM);
+    signalHandler.AddHandler(SigHandler, SIGINT);
 #endif
 
     // Scaling manager object registration

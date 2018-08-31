@@ -15,6 +15,7 @@
 #include <QHeaderView>
 #include <QStandardItemModel>
 #include <QDir>
+#include <QDateTimeEdit>
 
 //-----------------------------------------------------------------------------
 /// The global static instance of the output Window that all messages will flow into.
@@ -235,4 +236,49 @@ void RDPUtil::UnregisterLogWindow()
     qInstallMessageHandler(nullptr);
 #endif
     s_pMainWindow = nullptr;
+}
+
+//-----------------------------------------------------------------------------
+/// Get a string version of a date that follows set format in the OS
+/// \param dateTime the date to convert
+/// \param format the format to apply to convert
+/// \return a string version of a date that follows set format in the OS
+//-----------------------------------------------------------------------------
+QString RDPUtil::GetSystemDate(const QDateTime& dateTime, const QString& format)
+{
+    QString out = dateTime.toString();
+
+    if (format.isEmpty() == false)
+    {
+        out = dateTime.toString(format);
+    }
+
+    return out;
+}
+
+//-----------------------------------------------------------------------------
+/// Copy a file
+/// \param src the date to convert
+/// \param dst the format to apply to convert
+/// \param overwrite whether we should overwrite existing file
+/// \return true if successful, false otherwise
+//-----------------------------------------------------------------------------
+bool RDPUtil::FileCopy(const QString& src, const QString& dst, bool overwrite)
+{
+    bool success = true;
+
+    if (overwrite == true)
+    {
+        if (QFile::exists(dst))
+        {
+            success = QFile::remove(dst);
+        }
+    }
+
+    if (success == true)
+    {
+        success = QFile::copy(src, dst);
+    }
+
+    return success;
 }

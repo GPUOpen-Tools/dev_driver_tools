@@ -26,6 +26,7 @@
 #include "msgChannel.h"
 #include "ddTransferManager.h"
 #include "listenerCore.h"
+#include "ddURIRequestContext.h"
 
 namespace DevDriver
 {
@@ -41,7 +42,8 @@ namespace DevDriver
     }
 
     // =====================================================================================================================
-    Result ListenerURIService::HandleRequest(URIRequestContext* pContext)
+#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
+    Result ListenerURIService::HandleRequest(IURIRequestContext* pContext)
     {
         DD_ASSERT(pContext != nullptr);
 
@@ -52,131 +54,80 @@ namespace DevDriver
         {
             // We currently only handle the "info" command.
             // All other commands will result in an error.
-            if (strcmp(pContext->pRequestArguments, "clients") == 0)
+            if (strcmp(pContext->GetRequestArguments(), "clients") == 0)
             {
                 // Get a list of all currently connected clients.
                 const std::vector<DevDriver::ClientInfo> connectedClients = m_pListenerCore->GetConnectedClientList();
 
-                // @todo: Replace with a string builder utility class.
-                char textBuffer[256];
+                ITextWriter* pWriter = nullptr;
+                result = pContext->BeginTextResponse(&pWriter);
 
-                // Write all the info into the response block as plain text.
-                auto& pBlock = pContext->pResponseBlock;
-
-                // Write the header
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "--- %u Connected Clients ---", static_cast<uint32>(connectedClients.size()));
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
-
-                for (uint32 clientIndex = 0; clientIndex < static_cast<uint32>(connectedClients.size()); ++clientIndex)
+                if (result == Result::Success)
                 {
-                    const ClientInfo& clientInfo = connectedClients[clientIndex];
+                    pWriter->Write("--- %zu Connected Clients ---", connectedClients.size());
 
-                    // Write the client header
-                    Platform::Snprintf(textBuffer, sizeof(textBuffer), "\n\n--- Client %u ---", clientIndex);
-                    pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                    for (uint32 clientIndex = 0; clientIndex < static_cast<uint32>(connectedClients.size()); ++clientIndex)
+                    {
+                        const ClientInfo& clientInfo = connectedClients[clientIndex];
 
-                    // Write the name
-                    Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nName: %s", clientInfo.clientName);
-                    pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                        pWriter->Write("\n\n--- Client %zu ---", clientIndex);
+                        pWriter->Write("\nName: %s", clientInfo.clientName);
+                        pWriter->Write("\nDescription: %s", clientInfo.clientDescription);
+                        pWriter->Write("\nProcess Id: %zu", clientInfo.clientPid);
+                        pWriter->Write("\nClient Id: %zu", clientInfo.clientId);
+                        pWriter->Write("\nHas Been Identified: %zu", clientInfo.hasBeenIdentified);
+                    }
 
-                    // Write the description
-                    Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nDescription: %s", clientInfo.clientDescription);
-                    pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
-
-                    // Write the process id
-                    Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nProcess Id: %u", clientInfo.clientPid);
-                    pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
-
-                    // Write the client id
-                    Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Id: %u", static_cast<uint32>(clientInfo.clientId));
-                    pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
-
-                    // Write has been identified
-                    Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nHas Been Identified: %u", static_cast<uint32>(clientInfo.hasBeenIdentified));
-                    pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                    result = pWriter->End();
                 }
-
-                pContext->responseDataFormat = URIDataFormat::Text;
-
-                result = Result::Success;
             }
-            else if (strcmp(pContext->pRequestArguments, "transports") == 0)
+            else if (strcmp(pContext->GetRequestArguments(), "transports") == 0)
             {
                 // Get a list of all currently managed transports.
                 const std::vector<std::shared_ptr<IListenerTransport>>& managedTransports = m_pListenerCore->GetManagedTransports();
 
-                // @todo: Replace with a string builder utility class.
-                char textBuffer[256];
+                ITextWriter* pWriter = nullptr;
+                result = pContext->BeginTextResponse(&pWriter);
 
-                // Write all the info into the response block as plain text.
-                auto& pBlock = pContext->pResponseBlock;
-
-                // Write the header
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "--- %u Transports ---", static_cast<uint32>(managedTransports.size()));
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
-
-                for (uint32 transportIndex = 0; transportIndex < static_cast<uint32>(managedTransports.size()); ++transportIndex)
+                if (result == Result::Success)
                 {
-                    const std::shared_ptr<IListenerTransport>& transport = managedTransports[transportIndex];
+                    pWriter->Write("--- %zu Transports ---", managedTransports.size());
 
-                    // Write the transport header
-                    Platform::Snprintf(textBuffer, sizeof(textBuffer), "\n\n--- Transport %u ---", transportIndex);
-                    pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                    for (uint32 transportIndex = 0; transportIndex < static_cast<uint32>(managedTransports.size()); ++transportIndex)
+                    {
+                        const std::shared_ptr<IListenerTransport>& transport = managedTransports[transportIndex];
 
-                    // Write the name
-                    Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nName: %s", transport->GetTransportName());
-                    pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                        pWriter->Write("\n\n--- Transport %u ---", transportIndex);
+                        pWriter->Write("\nName: %s", transport->GetTransportName());
+                        pWriter->Write("\nHandle: %u", transport->GetHandle());
+                        pWriter->Write("\nIs Forwarding Connection: %zu", transport->ForwardingConnection());
+                    }
 
-                    // Write the handle
-                    Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nHandle: %u", transport->GetHandle());
-                    pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
-
-                    // Write the description
-                    Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nIs Forwarding Connection: %u", static_cast<uint32>(transport->ForwardingConnection()));
-                    pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                    result = pWriter->End();
                 }
-
-                pContext->responseDataFormat = URIDataFormat::Text;
-
-                result = Result::Success;
             }
-            else if (strcmp(pContext->pRequestArguments, "info") == 0)
+            else if (strcmp(pContext->GetRequestArguments(), "info") == 0)
             {
-                // @todo: Replace with a string builder utility class.
-                char textBuffer[256];
-
-                // Write all the info into the response block as plain text.
-                auto& pBlock = pContext->pResponseBlock;
-
                 const IClientManager* pClientManager = m_pListenerCore->GetClientManager();
                 const ListenerCreateInfo& createInfo = m_pListenerCore->GetCreateInfo();
 
-                // Write the listener description
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "Listener Description: %s", createInfo.description);
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                ITextWriter* pWriter = nullptr;
+                result = pContext->BeginTextResponse(&pWriter);
 
-                // Write the listener UWP flag
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nListener UWP Support: %u", static_cast<uint32>(createInfo.flags.enableUWP));
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                if (result == Result::Success)
+                {
+                    pWriter->Write("Listener Description: %s", createInfo.description);
+                    pWriter->Write("\nListener UWP Support: %u", static_cast<uint32>(createInfo.flags.enableUWP));
+                    pWriter->Write("\nListener Server Support: %u", static_cast<uint32>(createInfo.flags.enableServer));
+                    pWriter->Write("\nClient Manager Name: %s", pClientManager->GetClientManagerName());
+                    pWriter->Write("\nClient Manager Host Client Id: %u", static_cast<uint32>(pClientManager->GetHostClientId()));
 
-                // Write the listener server flag
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nListener Server Support: %u", static_cast<uint32>(createInfo.flags.enableServer));
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
-
-                // Write the name of the client manager
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Manager Name: %s", pClientManager->GetClientManagerName());
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
-
-                // Write the host client id of the client manager
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Manager Host Client Id: %u", static_cast<uint32>(pClientManager->GetHostClientId()));
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
-
-                pContext->responseDataFormat = URIDataFormat::Text;
-
-                result = Result::Success;
+                    result = pWriter->End();
+                }
             }
         }
 
         return result;
     }
+#endif
 } // DevDriver

@@ -1,0 +1,21 @@
+// DevDriverTools
+
+// "WORKSPACE" is passed in by the build script from Jenkins
+Define "DEVDRIVERTOOLSPATH" "[WORKSPACE]"
+Define "DEVDRIVERTOOLSBUILD" "[DEVDRIVERTOOLSPATH]\build\win\VS2017"
+
+Always
+   Log "[WORKSPACE]\DevDriverTools_Build.log"
+
+   // Generate zip files
+   Define "ZIPDIR" "[WORKSPACE]\DevDriverTools.[BUILD]"
+   XCopy "[DEVDRIVERTOOLSPATH]\build\win\Release" "[ZIPDIR]\"
+   mkdir "[ZIPDIR]\docs\help"
+   mkdir "[ZIPDIR]\docs\help\rdp"
+   mkdir "[ZIPDIR]\docs\help\rdp\html"
+   XCopy "[WORKSPACE]\docs\build\html" "[ZIPDIR]\docs\help\rdp\html"
+   Zip "[ZIPDIR].zip" "[ZIPDIR]"
+
+   Define "APIZIPDIR" "[WORKSPACE]\DevDriverAPI.[BUILD]"
+   XCopy "[DEVDRIVERTOOLSPATH]\build\win\Release\DevDriverAPI" "[APIZIPDIR]\"
+   Zip "[APIZIPDIR].zip" "[APIZIPDIR]"

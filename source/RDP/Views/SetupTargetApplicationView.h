@@ -35,6 +35,7 @@ public:
 
 signals:
     void ApplicationRemovedFromList(const QString& applicationName);
+    void ApplicationAddedToList(const QString& applicationName);
 
 public slots:
     void OnTraceCollectionStatusUpdated(bool traceIsBeingCollected);

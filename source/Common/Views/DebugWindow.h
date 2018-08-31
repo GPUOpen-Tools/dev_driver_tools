@@ -24,6 +24,8 @@ public:
     explicit DebugWindow(QWidget* pParent = nullptr);
     ~DebugWindow();
 
+    void SetReadOnly(bool readOnly);
+
 signals:
     void EmitSetText(const QString& str);
 

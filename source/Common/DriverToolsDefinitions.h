@@ -54,6 +54,8 @@ static const char* gs_DEFAULT_HOST_ADDRESS = "0.0.0.0";         ///< The default
 static const unsigned int gs_DEFAULT_CONNECTION_PORT = 27300;   ///< The default port used to connect the Developer Panel to the Developer Service.
 static const unsigned short gs_MAX_LISTEN_PORT = 65535;         ///< The highest port that the Developer Service can listen on.
 
+static const unsigned int gs_DEFAULT_ENDTRACE_TIMEOUT = 3000;   ///< Default timeout passed into EndTrace()
+
 // Control window sizes.
 static const int gs_DESKTOP_MARGIN = 25;
 static const int gs_OS_TITLE_BAR_HEIGHT = 35;

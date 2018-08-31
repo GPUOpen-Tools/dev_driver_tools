@@ -38,6 +38,7 @@ namespace DevDriver
 
     // String used to identify the listener URI service
     DD_STATIC_CONST char kListenerURIServiceName[] = "listener";
+    DD_STATIC_CONST Version kListenerURIServiceVersion = 1;
 
     class ListenerURIService : public IService
     {
@@ -47,13 +48,24 @@ namespace DevDriver
 
         // Returns the name of the service
         const char* GetName() const override final { return kListenerURIServiceName; }
+        Version GetVersion() const override final { return kListenerURIServiceVersion; }
 
         // Binds a listener core to the service
         // All requests will be handled using the currently bound listener core
         void BindListenerCore(ListenerCore* pListenerCore) { m_pListenerCore = pListenerCore; }
 
+#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
         // Handles an incoming URI request
-        Result HandleRequest(URIRequestContext* pContext) override final;
+        Result HandleRequest(IURIRequestContext* pContext) override final;
+#else
+        // Handles an incoming URI request
+        // Deprecated
+        Result HandleRequest(URIRequestContext* pContext) override final
+        {
+            DD_UNUSED(pContext);
+            return Result::VersionMismatch;
+        }
+#endif
 
     private:
         // Currently bound listener core

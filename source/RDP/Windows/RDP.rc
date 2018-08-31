@@ -29,7 +29,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_ICON1               ICON                    "../../../images/RDP_Icon.ico"
+IDI_ICON1               ICON                    "../../../assets/RDP_Icon.ico"
 
 /////////////////////////////////////////////////////////////////////////////
 //

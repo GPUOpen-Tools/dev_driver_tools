@@ -1,5 +1,5 @@
 //=============================================================================
-/// Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+/// Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
 /// \author AMD Developer Tools Team
 /// \file
 /// \brief  An interface used to view and alter driver settings.
@@ -52,16 +52,17 @@ private:
     void ClearSettingItemWidgets();
     void ClearCategoryList();
 
-    Ui::DriverSettingsView *ui;                             ///< Qt ui component
+    Ui::DriverSettingsView *ui;                              ///< Qt ui component
 
-    EmptyDriverSettingsView* m_pEmptyDriverSettingsView;    ///< Empty settings view shown when there are no settings
+    EmptyDriverSettingsView* m_pEmptyDriverSettingsView;     ///< Empty settings view shown when there are no settings
 
-    DriverSettingsModel* m_pDriverSettingsModel;            ///< The DriverSettingsModel backend instance.
-    SettingTableComboBoxDelegate* m_pSettingTableEditor;    ///< The delegate used for the settings editor dropdown.
-    ApplicationSettingsModel* m_pApplicationSettingsModel;  ///< The settings model being altered by this interface.
+    DriverSettingsModel* m_pDriverSettingsModel;             ///< The DriverSettingsModel backend instance.
+    SettingTableComboBoxDelegate* m_pSettingTableEditor;     ///< The delegate used for the settings editor dropdown.
+    ApplicationSettingsModel* m_pApplicationSettingsModel;   ///< The settings model being altered by this interface.
 
-    bool m_searchActive;                                    ///< Search active state, true if searching false otherwise
-    int m_preSearchCategoryIndex;                           ///< Index of selected category prior to search
+    bool m_searchActive;                                     ///< Search active state, true if searching false otherwise
+    int m_preSearchCategoryIndex;                            ///< Index of selected category prior to search
+
 };
 
 #endif // _DRIVER_SETTINGS_VIEW_H_

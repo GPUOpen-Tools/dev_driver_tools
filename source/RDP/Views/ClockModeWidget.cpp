@@ -21,17 +21,17 @@ static const QString kClockModeImageStylesheet =
 " "
 "QCheckBox::indicator::unchecked "
 "{ "
-"    image: url(:/images/%1.png); "
+"    image: url(:/assets/%1.png); "
 "} "
 " "
 "QCheckBox::indicator::checked "
 "{ "
-"    image: url(:/images/%2.png); "
+"    image: url(:/assets/%2.png); "
 "} "
 " "
 "QCheckBox::indicator::unchecked:hover "
 "{ "
-"    image: url(:/images/%3.png); "
+"    image: url(:/assets/%3.png); "
 "} ";
 
 //-----------------------------------------------------------------------------

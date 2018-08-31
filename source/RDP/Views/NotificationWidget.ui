@@ -88,7 +88,7 @@
              <string/>
             </property>
             <property name="pixmap">
-             <pixmap resource="../Panel.qrc">:/images/third_party/ionicons/alert-circled.svg</pixmap>
+             <pixmap resource="../Panel.qrc">:/assets/third_party/ionicons/alert-circled.svg</pixmap>
             </property>
             <property name="scaledContents">
              <bool>true</bool>

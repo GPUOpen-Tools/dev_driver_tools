@@ -26,8 +26,9 @@ SingleApplicationInstance* s_pAppInstance = nullptr;
 //--------------------------------------------------------------
 /// Handler that gets called when the SIGINT signal is caught
 //--------------------------------------------------------------
-void SigHandler()
+void SigHandler(int signal)
 {
+    DD_UNUSED(signal);
     if (s_pAppInstance != nullptr)
     {
         s_pAppInstance->exit();
@@ -69,7 +70,7 @@ int main(int argc, char* argv[]) try
 #ifndef Q_OS_WIN
     // install signal handlers on Linux. For now, just Ctrl-C (SIGINT)
     SignalHandler signalHandler;
-    signalHandler.AddHandler((__sighandler_t)SigHandler, SIGINT);
+    signalHandler.AddHandler(SigHandler, SIGINT);
 #endif
 
     pMainWindow->show();

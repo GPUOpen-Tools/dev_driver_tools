@@ -13,6 +13,7 @@
 #include "ConnectionSettingsModel.h"
 #include "DeveloperPanelModel.h"
 #include "ConnectionAttemptWorker.h"
+#include "gpuopen.h"
 #include "../RDPDefinitions.h"
 #include "../Util/RDPUtil.h"
 #include "../../Common/Process.h"
@@ -41,13 +42,11 @@ ConnectionSettingsModel::ConnectionSettingsModel(DeveloperPanelModel* pPanelMode
 {
 
     // Initialize all client communication create info
-    m_clientCreateInfo.rdsInfo.transportCreateInfo.initialFlags = static_cast<DevDriver::StatusFlags>(ClientStatusFlags::DeveloperModeEnabled) | static_cast<DevDriver::StatusFlags>(ClientStatusFlags::HaltOnConnect);
+    m_clientCreateInfo.rdsInfo.initialFlags = static_cast<DevDriver::StatusFlags>(ClientStatusFlags::DeveloperModeEnabled) | static_cast<DevDriver::StatusFlags>(ClientStatusFlags::HaltOnConnect);
 
-    m_clientCreateInfo.rdsInfo.transportCreateInfo.allocCb = GenericAllocCb;
-
-    Platform::Strncpy(m_clientCreateInfo.rdsInfo.transportCreateInfo.clientDescription, gs_PRODUCT_NAME_STRING.toStdString().c_str(), sizeof(m_clientCreateInfo.rdsInfo.transportCreateInfo.clientDescription));
-    m_clientCreateInfo.rdsInfo.transportCreateInfo.componentType = Component::Tool;
-    m_clientCreateInfo.rdsInfo.transportCreateInfo.createUpdateThread = true;
+    Platform::Strncpy(m_clientCreateInfo.rdsInfo.clientDescription, gs_PRODUCT_NAME_STRING.toStdString().c_str(), sizeof(m_clientCreateInfo.rdsInfo.clientDescription));
+    m_clientCreateInfo.rdsInfo.componentType = Component::Tool;
+    m_clientCreateInfo.rdsInfo.createUpdateThread = true;
 
     // Set up thread and worker
     m_pWorkerThread = new QThread();
@@ -67,6 +66,7 @@ ConnectionSettingsModel::ConnectionSettingsModel(DeveloperPanelModel* pPanelMode
 //-----------------------------------------------------------------------------
 ConnectionSettingsModel::~ConnectionSettingsModel()
 {
+
     // Send a terminate message so the server cleans itself up properly.
     TerminateLocalRds();
 
@@ -164,40 +164,40 @@ void ConnectionSettingsModel::InitializeConnection()
         }
 
         // Save the host IP and port in the parent connection info so the full info can be added to the recent connections table.
-        m_clientCreateInfo.port = m_clientCreateInfo.rdsInfo.transportCreateInfo.hostInfo.port;
-        m_clientCreateInfo.ipString = m_clientCreateInfo.rdsInfo.transportCreateInfo.hostInfo.hostname;
+        m_clientCreateInfo.port = m_clientCreateInfo.rdsInfo.connectionInfo.port;
+        m_clientCreateInfo.ipString = m_clientCreateInfo.rdsInfo.connectionInfo.hostname;
 
         // Check the IP given by the user and attempt to determine if it's a local or remote connection.
-        if (strcmp(m_clientCreateInfo.rdsInfo.transportCreateInfo.hostInfo.hostname, gs_LOCAL_HOST_IP.toStdString().c_str()) == 0)
+        if (strcmp(m_clientCreateInfo.rdsInfo.connectionInfo.hostname, gs_LOCAL_HOST_IP.toStdString().c_str()) == 0)
         {
-            m_clientCreateInfo.rdsInfo.transportCreateInfo.type = TransportType::Local;
+            m_clientCreateInfo.rdsInfo.connectionInfo.type = TransportType::Local;
 
             // Replace the hostname with the user-visible "localhost" string to display in the recent connections table.
             m_clientCreateInfo.ipString = gs_LOCAL_HOST;
 
-            // Empty the host IP in the create info structure when connecting to localhost.
-            Platform::Strncpy(m_clientCreateInfo.rdsInfo.transportCreateInfo.hostInfo.hostname, "", sizeof(char) * kMaxStringLength);
+            // Use default connection info when connecting to localhost.
+            m_clientCreateInfo.rdsInfo.connectionInfo = kDefaultNamedPipe;
         }
         else
         {
-            m_clientCreateInfo.rdsInfo.transportCreateInfo.type = TransportType::Remote;
+            m_clientCreateInfo.rdsInfo.connectionInfo.type = TransportType::Remote;
         }
 
         // When the user will connect to the local machine, start the RDS process automatically.
-        if (m_clientCreateInfo.rdsInfo.transportCreateInfo.type == TransportType::Local)
+        if (m_clientCreateInfo.rdsInfo.connectionInfo.type == TransportType::Local)
         {
             // Check if RDS is already running locally.
             bool rdsAlreadyRunning = ((SingleApplicationInstance*)QApplication::instance())->IsInstanceRunning(gs_RDS_APPLICATION_GUID);
 
             // Only start a new RDS process if it isn't already running, or if the local port has changed
-            if (!rdsAlreadyRunning || (m_clientCreateInfo.rdsInfo.transportCreateInfo.hostInfo.port != m_lastLocalPort && m_lastLocalPort != 0))
+            if (!rdsAlreadyRunning || (m_clientCreateInfo.rdsInfo.connectionInfo.port != m_lastLocalPort && m_lastLocalPort != 0))
             {
                 // RDS isn't already running. Launch it automatically before we attempt to connect.
                 RDPUtil::DbgMsg("[RDP] Attempting to start Radeon Developer Service locally.");
-                bool rdsLaunched = LaunchLocalRDS(m_clientCreateInfo.rdsInfo.transportCreateInfo.hostInfo.port);
+                bool rdsLaunched = LaunchLocalRDS(m_clientCreateInfo.rdsInfo.connectionInfo.port);
                 if (rdsLaunched)
                 {
-                    m_lastLocalPort = m_clientCreateInfo.rdsInfo.transportCreateInfo.hostInfo.port;
+                    m_lastLocalPort = m_clientCreateInfo.rdsInfo.connectionInfo.port;
                 }
                 else
                 {
@@ -319,7 +319,7 @@ void ConnectionSettingsModel::SetHostIP(const QString& hostIP)
         hostStdString = gs_LOCAL_HOST_IP.toStdString();
     }
 
-    Platform::Strncpy(m_clientCreateInfo.rdsInfo.transportCreateInfo.hostInfo.hostname, hostStdString.c_str(), kMaxStringLength);
+    Platform::Strncpy(m_clientCreateInfo.rdsInfo.connectionInfo.hostname, hostStdString.c_str(), kMaxStringLength);
 }
 
 //-----------------------------------------------------------------------------
@@ -328,7 +328,7 @@ void ConnectionSettingsModel::SetHostIP(const QString& hostIP)
 //-----------------------------------------------------------------------------
 void ConnectionSettingsModel::SetHostPort(uint16_t port)
 {
-    m_clientCreateInfo.rdsInfo.transportCreateInfo.hostInfo.port = port;
+    m_clientCreateInfo.rdsInfo.connectionInfo.port = port;
 }
 
 //-----------------------------------------------------------------------------
@@ -339,7 +339,7 @@ void ConnectionSettingsModel::SetHostPort(uint16_t port)
 const QString ConnectionSettingsModel::GetConnectionEndpointString() const
 {
     // Append the Hostname:Port together to display to the user.
-    QString hostnameString(m_clientCreateInfo.rdsInfo.transportCreateInfo.hostInfo.hostname);
+    QString hostnameString(m_clientCreateInfo.rdsInfo.connectionInfo.hostname);
     if (hostnameString.isEmpty())
     {
         // If the hostname string is empty, the user is connecting to localhost.
@@ -350,11 +350,11 @@ const QString ConnectionSettingsModel::GetConnectionEndpointString() const
     if (hostnameString != gs_LOCAL_HOST)
     {
         hostnameString.append(":");
-        hostnameString.append(QString::number(m_clientCreateInfo.rdsInfo.transportCreateInfo.hostInfo.port));
+        hostnameString.append(QString::number(m_clientCreateInfo.rdsInfo.connectionInfo.port));
     }
 #else
     hostnameString.append(":");
-    hostnameString.append(QString::number(m_clientCreateInfo.rdsInfo.transportCreateInfo.hostInfo.port));
+    hostnameString.append(QString::number(m_clientCreateInfo.rdsInfo.connectionInfo.port));
 #endif
     return hostnameString;
 }
@@ -365,9 +365,9 @@ const QString ConnectionSettingsModel::GetConnectionEndpointString() const
 void ConnectionSettingsModel::OnRDSDisconnected()
 {
     // If connected using a local transport type, restore clientCreateInfo ip to local host ip
-    if (m_clientCreateInfo.rdsInfo.transportCreateInfo.type == TransportType::Local)
+    if (m_clientCreateInfo.rdsInfo.connectionInfo.type == TransportType::Local)
     {
-        Platform::Strncpy(m_clientCreateInfo.rdsInfo.transportCreateInfo.hostInfo.hostname,
+        Platform::Strncpy(m_clientCreateInfo.rdsInfo.connectionInfo.hostname,
             gs_LOCAL_HOST_IP.toStdString().c_str(), sizeof(char) * kMaxStringLength);
     }
 

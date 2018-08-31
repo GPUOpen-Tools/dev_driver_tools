@@ -1,5 +1,5 @@
 //=============================================================================
-/// Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+/// Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
 /// \author AMD Developer Tools Team
 /// \file
 /// \brief  Shared definitions for the Developer Panel.
@@ -13,12 +13,15 @@
 
 #define RDP_UNUSED(x) (void)(x);
 
+#define ENABLE_PIPELINE_BINARIES (0 & RADEON_DRIVER_TOOLS_INTERNAL)
+
 static const QString gs_PRODUCT_NAME_STRING             = "Radeon Developer Panel" " " DEV_DRIVER_TOOLS_BUILD_SUFFIX;     ///< The human-readable product name.
 static const QString gs_PRODUCT_SETTINGS_FILENAME       = "RDPSettings.xml";            ///< The filename for RDP application settings.
 static const QString gs_PRODUCT_LOG_FILENAME            = "RDPLogFile.txt";             ///< The filename for RDP logs.
 static const QString gs_PROCESS_NAME_BLACKLIST_FILENAME = "ProcessBlacklist.txt";       ///< The filename for the process name blacklist.
 static const QString gs_APPLICATION_SETTINGS_DIRECTORY  = "AppSettings";                ///< The directory to place Application Settings files in.
 static const QString gs_DEFAULT_TRACE_DIRECTORY         = "profiles";                   ///< The default directory to dump profiles to.
+static const QString gs_DEFAULT_PIPELINES_DIRECTORY     = "pipelines";                  ///< The default directory to dump pipelines to.
 static const char gs_CAPTURE_TRACE_HOTKEY               = 'C';                          ///< Keypress + [SHIFT] + [CTRL] that triggers a trace capture.
 
 // RDP's default dimensions.
@@ -27,6 +30,9 @@ static const int gs_PRODUCT_DEFAULT_HEIGHT  = 650;  ///< The default height for 
 
 // RDP Color definitions.
 static const QColor gs_PRODUCT_COLOR_GUNMETAL = QColor(51, 51, 51);     ///< A potentially lethal shade of gray. Use caution when handling this color.
+
+// Define font point sizes
+static const int gs_SUB_TAB_POINT_FONT_SIZE = 12;
 
 // General purpose strings used throughout the Panel interface.
 static const QString gs_EMPTY_TEXT          = "";
@@ -108,13 +114,9 @@ static const QString gs_PROFILER_ALREADY_IN_USE_MSG                 = "Target ap
 static const QString gs_UNCHECK_PROFILE_WHILE_COLLECTING_TRACE_TITLE = "Selection error";
 static const QString gs_UNCHECK_PROFILE_WHILE_COLLECTING_TRACE_MSG   = "Cannot select/deselect while collecting a profile.";
 
-// Driver settings interface strings.
-static const QString gs_SETTING_TABLE_SETTING_DISPLAY_TEXT          = "Setting";
-static const QString gs_SETTING_TABLE_VALUE_DISPLAY_TEXT            = "Value";
-
 // Driver settings default all confirmation dialog strings.
 static const QString gs_SETTING_DEFAULT_ALL_CONFIRMATION_DIALOG_TITLE = "Default all confirmation";
-static const QString gs_SETTING_DEFAULT_ALL_CONFIRMATION_DIALOG_TEXT  = "Do you want to reset all driver settings to default values?";
+static const QString gs_SETTING_DEFAULT_ALL_CONFIRMATION_DIALOG_TEXT = "Do you want to reset all driver settings to default values?";
 
 // Clocks panel descriptions
 static const QString gs_CLOCKS_FIXED_FREQUENCY_HEADER   = "Fixed";
@@ -171,7 +173,11 @@ static const QString gs_RGP_DIR_NOT_WRITABLE_MESSAGE                = "Directory
 static const QString gs_PROFILING_NOT_SUPPORTED_TITLE               = "GPU hardware not supported.";
 static const QString gs_PROFILING_NOT_SUPPORTED_TEXT                = "Unsupported hardware, refer to the documentation for the list of supported GPUs.";
 static const QString gs_DRIVER_WARNING_TITLE                        = "Driver incompatibility warning";
-static const QString gs_DRIVER_WARNING_TEXT                         = "The currently installed video driver is known to produce system instability when capturing RGP profiles.\n\nIt is strongly recommended for users to update to AMD Driver 18.5.1, or newer, to avoid this problem.\nhttps://support.amd.com/en-us/download";
+static const QString gs_DRIVER_WARNING_TEXT                         = "To use the latest features of RGP, it is strongly recommended that users update to the latest driver.\n\n" \
+                                                                      "Currently installed driver: %1\nRecommended driver: 18.10.16-180516a-328911C-RadeonSoftwareAdrenalin " \
+                                                                      "(Radeon Software Version 18.5.1)\n\nhttps://support.amd.com/en-us/download";
+static const QString gs_VERSION_CHANGED_TITLE                       = "New Radeon Developer Panel detected";
+static const QString gs_VERSION_CHANGED_TEXT                        = "The Radeon Developer Panel has been updated. The version of the Radeon GPU Profiler used to open profiles from here may also have been updated. Please ensure you are using the latest version of RGP by clicking on the 'Profiling' tab and browsing to the newest copy of RGP";
 
 // Description strings that can be used to identify the AMD UMD running within a target process.
 static const QString gs_UNKNOWN_API                 = "Unknown";

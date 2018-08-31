@@ -1,5 +1,5 @@
 //=============================================================================
-/// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+/// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 /// \author AMD Developer Tools Team
 /// \file
 /// \brief  A background worker thread responsible for processing incoming driver log messages.
@@ -43,7 +43,7 @@ public slots:
 private:
     DevDriver::LoggingProtocol::LoggingClient* m_pLoggingClient;    ///< The logging client instance used to read log messages.
     DriverLogfileModel* m_pDriverLogfileModel;                      ///< The logfile model to insert log lines into.
-    bool m_retrievingLogMessages;                                  ///< The flag used to track if reading log messages is enabled.
+    bool m_retrievingLogMessages;                                   ///< The flag used to track if reading log messages is enabled.
 };
 
 #endif // _DRIVER_LOG_BACKGROUND_WORKER_H_

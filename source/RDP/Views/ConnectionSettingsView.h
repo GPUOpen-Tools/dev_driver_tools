@@ -24,12 +24,13 @@ class RecentConnectionsView;
 class NewConnectionView;
 class SetupTargetApplicationView;
 class ConnectionStatusView;
+class ConnectionLogView;
 
 class ConnectionSettingsView : public QWidget
 {
     Q_OBJECT
 public:
-    explicit ConnectionSettingsView(DeveloperPanelModel* pPanelModel, QWidget* pParent = nullptr);
+    explicit ConnectionSettingsView(DeveloperPanelModel* pPanelModel, ConnectionLogView* pConnectionLogView, QWidget* pParent = nullptr);
     virtual ~ConnectionSettingsView();
 
     virtual void OnClientIdUpdated(DevDriver::ClientId clientId);
@@ -53,6 +54,8 @@ private slots:
     void OnTerminateClicked();
     void OnRDSConnected();
     void OnRDSDisconnected();
+    void OnShowLog();
+    void OnHideLog();
     void OnRecentConnectionSelected(const RDSConnectionInfo& selectedConnectionInfo);
     void OnRecentConnectionDoubleClicked(const RDSConnectionInfo& selectedConnectionInfo);
     void OnConnectionAttemptStopPressed();
@@ -74,8 +77,9 @@ private:
     SetupTargetApplicationView*     m_pSetupTargetApplicationView;      ///< The setup target application view
     ActiveApplicationsTableView*    m_pActiveApplicationsTableView;     ///< The table containing the list of active applications.
     ConnectionSettingsModel*        m_pConnectionSettingsModel;         ///< The Connection Settings model backend.
-    std::vector<QWidget*>           m_page1Views;                       ///< Views to be displayed on the first 'page'
-    std::vector<QWidget*>           m_page2Views;                       ///< Views to be displayed on the second 'page'
+    std::vector<QWidget*>           m_preConnectionViews;               ///< Views to be displayed when not connected to RDS
+    std::vector<QWidget*>           m_connectedViews;                   ///< Views to be displayed when connected to RDS
+    std::vector<QWidget*>           m_connectionLogViews;               ///< Views to be displayed when viewing the connection log
     std::vector<QWidget*>           m_visibleViews;                     ///< The list of views currently on the pane
     DeveloperPanelModel*            m_pPanelModel;                      ///< The main Developer Panel model.
 

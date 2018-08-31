@@ -1,5 +1,5 @@
 //=============================================================================
-/// Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+/// Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
 /// \author AMD Developer Tools Team
 /// \file
 /// \brief The Developer Panel Model used to communicate with the Radeon Developer Service.
@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <chrono>
 #include <ctime>
+
 #include "DeveloperPanelModel.h"
 #include "ApplicationSettingsModel.h"
 #include "ConnectionSettingsModel.h"
@@ -92,7 +93,7 @@ bool DeveloperPanelModel::InitializeConnectionToRDS()
         const RDSConnectionInfo& createInfoCopy = pConnectionSettingsModel->GetConnectionCreateInfo();
 
         // Create the main DevDriverClient instance. Use this to communicate with each halted developer mode process.
-        DevDriverClient* pDriverClient = new DevDriverClient(createInfoCopy.rdsInfo);
+        DevDriverClient* pDriverClient = new DevDriverClient(GenericAllocCb, createInfoCopy.rdsInfo);
         if (pDriverClient != nullptr)
         {
             m_channelContext.pClient = pDriverClient;
@@ -269,74 +270,92 @@ void DeveloperPanelModel::AddClientInfo(DevDriver::ClientId srcClientId, const Q
 {
     RDPUtil::DbgMsg("[RDP] Processing halted client with id %u: %s:%u - %s", srcClientId, processName.toStdString().c_str(), processId, clientDescription.toStdString().c_str());
 
-    // Create a ProcessInfoModel with the process info, and then update with the ClientId it's using.
-    ProcessInfoModel processInfo(processName, clientDescription, processId);
-    processInfo.UpdateClientId(srcClientId);
-
-    RDPUtil::DbgMsg("[RDP] Updated %s ClientId to %d", processName.toStdString().c_str(), srcClientId);
-
-    // Connect a DriverControlClient to the application to avoid allowing a timeout to resume it.
-    DriverControlClient* pDriverControlClient = ConnectDriverControlClient(processInfo);
-
-    bool wasBlacklisted = false;
-
-    if (RDPSettings::Get().CheckBlacklistMatch(processName))
+    // look to see if the clientID has been seen before for this processId. If it's been seen before, it could be being processed
+    // in a different thread so ignore it if so.
+    bool seenClientBefore = false;
+    for (int processIndex = 0; processIndex < m_processInfoList.size(); ++processIndex)
     {
-        RDPUtil::DbgMsg("[RDP] Process %s blacklisted, no action taken", processName.toStdString().c_str());
-        wasBlacklisted = true;
-    }
-    else
-    {
-        // We only need to filter a process if it's new, or if the ClientId has been updated.
-        bool shouldFilterProcess = false;
-
-        // Has RDP already seen this process? Ignore repeated requests from the same process.
-        bool hasProcessInfo = HasProcessInfo(processInfo);
-        if (!hasProcessInfo)
+        ProcessInfoModel& processInfoFromList = m_processInfoList[processIndex];
+        if (processInfoFromList.GetProcessId() == processId)
         {
-             // Add the process info to the list for the first time.
-            m_processInfoList.push_back(processInfo);
-            shouldFilterProcess = true;
+            if (processInfoFromList.HasSeenClientId(srcClientId) == true)
+            {
+                RDPUtil::DbgMsg("[RDP] Seen ClientId %d for process %s", srcClientId, processName.toStdString().c_str());
+                seenClientBefore = true;
+                break;
+            }
+        }
+    }
+
+    if (seenClientBefore == false)
+    {
+        // Create a ProcessInfoModel with the process info, and then update with the ClientId it's using.
+        ProcessInfoModel processInfo(processName, clientDescription, processId);
+        processInfo.UpdateClientId(srcClientId);
+        RDPUtil::DbgMsg("[RDP] Updated %s ClientId to %d", processName.toStdString().c_str(), srcClientId);
+
+        // Connect a DriverControlClient to the application to avoid allowing a timeout to resume it.
+        DriverControlClient* pDriverControlClient = ConnectDriverControlClient(processInfo);
+
+        bool wasBlacklisted = false;
+        if (RDPSettings::Get().CheckBlacklistMatch(processName))
+        {
+            RDPUtil::DbgMsg("[RDP] Process %s blacklisted, no action taken", processName.toStdString().c_str());
+            wasBlacklisted = true;
         }
         else
         {
-            bool updatedClientId = TryUpdateClientId(processInfo);
-            if (updatedClientId)
+            // We only need to filter a process if it's new, or if the ClientId has been updated.
+            bool shouldFilterProcess = false;
+
+            // Has RDP already seen this process? Ignore repeated requests from the same process.
+            bool hasProcessInfo = HasProcessInfo(processInfo);
+            if (!hasProcessInfo)
             {
+                 // Add the process info to the list for the first time.
+                m_processInfoList.push_back(processInfo);
                 shouldFilterProcess = true;
+            }
+            else
+            {
+                bool updatedClientId = TryUpdateClientId(processInfo);
+                if (updatedClientId)
+                {
+                    shouldFilterProcess = true;
+                }
+            }
+
+            if (shouldFilterProcess)
+            {
+                // The ClientId has been updated for the process. It's still actively running, so update the status.
+                emit UpdateClientRunStatus(processInfo, true);
+
+                // Filter each process by Target Executable filename.
+                FilterHaltedProcess(srcClientId, processInfo);
             }
         }
 
-        if (shouldFilterProcess)
+        if (pDriverControlClient != nullptr)
         {
-            // The ClientId has been updated for the process. It's still actively running, so update the status.
-            emit UpdateClientRunStatus(processInfo, true);
+            // Resume each halted process after we're finished applying settings.
+            ResumeHaltedProcess(pDriverControlClient, processInfo);
 
-            // Filter each process by Target Executable filename.
-            FilterHaltedProcess(processInfo);
+            // If the process was blacklisted, don't wait for the driver to be initialized- just move on.
+            if (wasBlacklisted == false)
+            {
+                // Wait for the driver to be initialized inside the application.
+                WaitForDriverInitialization(pDriverControlClient, processInfo);
+            }
+
+            // Disconnect the driver control client since we're done with it now.
+            DisconnectDriverControlClient(pDriverControlClient);
         }
-    }
-
-    if (pDriverControlClient != nullptr)
-    {
-        // Resume each halted process after we're finished applying settings.
-        ResumeHaltedProcess(pDriverControlClient, processInfo);
-
-        // If the process was blacklisted, don't wait for the driver to be initialized- just move on.
-        if (!wasBlacklisted)
+        else
         {
-            // Wait for the driver to be initialized inside the application.
-            WaitForDriverInitialization(pDriverControlClient, processInfo);
+            const QString& processNameQString = processInfo.GetProcessName();
+            std::string processNameString = processNameQString.toStdString();
+            RDPUtil::DbgMsg("[RDP] Couldn't filter halted process '%s' because DriverControlClient failed to connect.", processNameString.c_str());
         }
-
-        // Disconnect the driver control client since we're done with it now.
-        DisconnectDriverControlClient(pDriverControlClient);
-    }
-    else
-    {
-        const QString& processNameQString = processInfo.GetProcessName();
-        std::string processNameString = processNameQString.toStdString();
-        RDPUtil::DbgMsg("[RDP] Couldn't filter halted process '%s' because DriverControlClient failed to connect.", processNameString.c_str());
     }
 }
 
@@ -355,15 +374,24 @@ void DeveloperPanelModel::ClientDisconnected(DevDriver::ClientId srcClientId)
         bool matchesProcess = infoModel.HasSeenClientId(srcClientId);
         if (matchesProcess)
         {
-            infoModel.SetConnectedStatus(false);
+            infoModel.SetConnectedStatus(srcClientId, false);
             infoModel.SetDriverInitializedStatus(false);
 
             emit UpdateClientRunStatus(infoModel, false);
             emit UpdateDriverInitializedStatus(infoModel, false);
+
+            // Get the most recent client id that is still connected, just in case the
+            // current client (srcClientId) is the one that is enabled for profiling
+            const ClientId lastClientId = infoModel.GetMostRecentClientId(true);
+            if (lastClientId != 0)
+            {
+                m_pPanelSettingsModel->SetConnectedClientId(lastClientId);
+            }
+
             DevDriver::ProcessId profiledProcessId = FindProfileEnabledProcess();
             if (profiledProcessId == infoModel.GetProcessId())
             {
-                infoModel.SetProfilingStatus(false);
+                infoModel.SetProfilingStatus(srcClientId, false);
                 emit ProfiledProcessInfoUpdate(infoModel);
             }
             break;
@@ -422,10 +450,12 @@ bool DeveloperPanelModel::TryUpdateClientId(ProcessInfoModel& processInfo)
 }
 
 //-----------------------------------------------------------------------------
-/// Filter each detected Developer Mode process. Apply any required settings, and attempt to resume them.
+/// Filter each detected Developer Mode process. Apply any required settings
+/// and attempt to resume them.
+/// \param srcClientId The ClientId for the new client.
 /// \param processInfo The info for the new process.
 //-----------------------------------------------------------------------------
-void DeveloperPanelModel::FilterHaltedProcess(ProcessInfoModel& processInfo)
+void DeveloperPanelModel::FilterHaltedProcess(const DevDriver::ClientId srcClientId, const ProcessInfoModel& processInfo)
 {
     RDPUtil::DbgMsg("[RDP] Filtered halted process with ProcessId = %u", processInfo.GetProcessId());
     DevDriver::ProcessId profiledProcessId = FindProfileEnabledProcess();
@@ -440,10 +470,9 @@ void DeveloperPanelModel::FilterHaltedProcess(ProcessInfoModel& processInfo)
             bool enabledSuccessfully = TryEnableProfiling(processInfoFromList);
             if ( enabledSuccessfully && ((profiledProcessId == 0) || (profiledProcessId == processInfo.GetProcessId())) )
             {
-                RDPUtil::DbgMsg("[RDP] Set profiling flag for ProcessId = %u to true.", processInfoFromList.GetProcessId());
-                processInfoFromList.SetProfilingStatus(true);
+                RDPUtil::DbgMsg("[RDP] Set profiling flag for ProcessId = %u (client ID %u) to true.", processInfoFromList.GetProcessId(), srcClientId);
+                processInfoFromList.SetProfilingStatus(srcClientId, true);
                 emit ProfiledProcessInfoUpdate(processInfoFromList);
-
                 // 2. Populate the ProcessInfo instance with driver settings data.
                 PopulateProcessDriverSettings(processInfoFromList);
 
@@ -538,19 +567,13 @@ bool DeveloperPanelModel::ApplyDriverSettingOverrides(const ProcessInfoModel& pr
 
     for (int targetRow = 0; targetRow < numRows; ++targetRow)
     {
-        QModelIndex executableNameIndex = pTargetExecutableTable->index(targetRow, TARGET_APPLICATION_TABLE_COLUMN_EXECUTABLE_NAME);
-        const QString targetExecutableName = pTargetExecutableTable->data(executableNameIndex, Qt::DisplayRole).toString();
-
-        // Does the new process filename match our Target Executable filename?
-        QRegExp compareString(targetExecutableName, Qt::CaseSensitivity::CaseInsensitive, QRegExp::Wildcard);
-        bool executableMatches = compareString.exactMatch(processInfo.GetProcessName());
-
-        if (executableMatches)
+        if (m_pTargetApplicationModel->IsExecutableMatchingAtRow(targetRow, processInfo.GetProcessName()) == true)
         {
+
             QModelIndex enableProfilingIndex = pTargetExecutableTable->index(targetRow, TARGET_APPLICATION_TABLE_COLUMN_APPLY_SETTINGS);
             const QVariant& checkState = pTargetExecutableTable->data(enableProfilingIndex, Qt::CheckStateRole);
 
-            // Apply driver setting changes only if the user has spoecified that they should be applied when seen.
+            // Apply driver setting changes only if the user has specified that they should be applied when seen.
             if (checkState == Qt::Checked)
             {
                 // Determine the set of driver settings will be updated using RDP's global overrides.
@@ -575,12 +598,13 @@ bool DeveloperPanelModel::ApplyDriverSettingOverrides(const ProcessInfoModel& pr
                     std::string processName = processInfo.GetProcessName().toStdString();
                     const char* pProcessName = processName.c_str();
 
-                    RDPUtil::DbgMsg("[RDP] Attempting to apply app-specific settings for Process %d %s", processInfo.GetProcessId(), pProcessName);
                     const ClientId currentClientId = processInfo.GetMostRecentClientId();
+                    RDPUtil::DbgMsg("[RDP] Attempting to apply app-specific settings for Process %d %s, currentCLientId %d", processInfo.GetProcessId(), pProcessName, currentClientId);
                     DevDriver::Result connectResult = pSettingsClient->Connect(currentClientId);
                     if (connectResult == Result::Success)
                     {
                         appliedChanges = ApplySettingsMap(pSettingsClient, globalOverridesMap);
+                        pSettingsClient->Disconnect();
                     }
 
                     // Release the SettingsClient after applying required settings.
@@ -724,13 +748,16 @@ void DeveloperPanelModel::GetProcessDriverSettings(const ProcessInfoModel& proce
                 {
                     RDPUtil::DbgMsg("[RDP] Failed to query number of driver settings.");
                 }
+
+                pSettingsClient->Disconnect();
             }
             else
             {
                 RDPUtil::DbgMsg("[RDP] Failed to connect SettingsClient to query driver settings.");
             }
 
-            pSettingsClient->Disconnect();
+            // Release the SettingsClient after applying required settings.
+            channelContext.pClient->ReleaseProtocolClient(pSettingsClient);
         }
     }
 }
@@ -755,16 +782,10 @@ bool DeveloperPanelModel::TryEnableProfiling(const ProcessInfoModel& processInfo
     QAbstractItemModel* pTargetExecutableTable = m_pTargetApplicationModel->GetTableModel();
     int numRows = pTargetExecutableTable->rowCount();
 
+    const QString processName = processInfo.GetProcessName();
     for (int targetRow = 0; targetRow < numRows; ++targetRow)
     {
-        QModelIndex executableNameIndex = pTargetExecutableTable->index(targetRow, TARGET_APPLICATION_TABLE_COLUMN_EXECUTABLE_NAME);
-        const QString targetExecutableName = pTargetExecutableTable->data(executableNameIndex, Qt::DisplayRole).toString();
-
-        // Does the new process filename match our Target Executable filename?
-        QRegExp compareString(targetExecutableName, Qt::CaseSensitivity::CaseInsensitive, QRegExp::Wildcard);
-        bool executableMatches = compareString.exactMatch(processInfo.GetProcessName());
-
-        if (executableMatches)
+        if (m_pTargetApplicationModel->IsExecutableMatchingAtRow(targetRow, processName) == true)
         {
             QModelIndex enableProfilingIndex = pTargetExecutableTable->index(targetRow, TARGET_APPLICATION_TABLE_COLUMN_ENABLE_PROFILING);
             const QVariant& checkState = pTargetExecutableTable->data(enableProfilingIndex, Qt::CheckStateRole);
@@ -785,6 +806,11 @@ bool DeveloperPanelModel::TryEnableProfiling(const ProcessInfoModel& processInfo
                 {
                     // Supposed to enable profiling for the app, but it's not supported.
                     emit DisplayUnsupportedASICNotification();
+                    RDPUtil::DbgMsg("[RDP] Can't enable profiling for client ID %d", lastClientId);
+                }
+                else
+                {
+                    RDPUtil::DbgMsg("[RDP] Can enable profiling for client ID %d", lastClientId);
                 }
 
                 break;
@@ -817,7 +843,21 @@ bool DeveloperPanelModel::EnableProfiling(const ProcessInfoModel& processInfo)
             DevDriver::Result connectResult = pRgpClient->Connect(currentClientId);
             if (connectResult == Result::Success)
             {
-                profilingEnabledResult = pRgpClient->EnableProfiling();
+                RDPUtil::DbgMsg("[RDP] EnableProfiling() for clientId %d.", currentClientId);
+
+                DevDriver::RGPProtocol::ProfilingStatus profilingStatus = DevDriver::RGPProtocol::ProfilingStatus::NotAvailable;
+                if (pRgpClient->QueryProfilingStatus(&profilingStatus) == DevDriver::Result::Success)
+                {
+                    if (profilingStatus == DevDriver::RGPProtocol::ProfilingStatus::Enabled)
+                    {
+                        RDPUtil::DbgMsg("[RDP] Profiling is already enabled on client id %u.", currentClientId);
+                    }
+                    else if (profilingStatus == DevDriver::RGPProtocol::ProfilingStatus::Available)
+                    {
+                        profilingEnabledResult = pRgpClient->EnableProfiling();
+                        pRgpClient->Disconnect();
+                    }
+                }
             }
 
             // Release the client after attempting to enable profiling.
@@ -900,6 +940,7 @@ bool DeveloperPanelModel::ApplySettingsMap(DevDriver::SettingsProtocol::Settings
 /// \param processInfo The processInfo of the halted process to resume.
 /// \returns True if settings were applied successfully, and false if it failed.
 //-----------------------------------------------------------------------------
+#if 0
 bool DeveloperPanelModel::ApplyApplicationSettings(const ProcessInfoModel& processInfo, ApplicationSettingsModel* pSettingsModel)
 {
     bool appliedGlobalSettings = false;
@@ -959,6 +1000,7 @@ bool DeveloperPanelModel::ApplyApplicationSettings(const ProcessInfoModel& proce
 
     return appliedGlobalSettings;
 }
+#endif // 0
 
 //-----------------------------------------------------------------------------
 /// Connect a driver control client to the new process.
@@ -975,6 +1017,7 @@ DriverControlClient* DeveloperPanelModel::ConnectDriverControlClient(const Proce
     if (channelContext.pClient != nullptr)
     {
         pDriverControlClient = static_cast<DriverControlClient*>(channelContext.pClient->AcquireProtocolClient<DevDriver::Protocol::DriverControl>());
+        DD_ASSERT(pDriverControlClient != nullptr);
         if (pDriverControlClient != nullptr)
         {
             const ClientId currentClientId = processInfo.GetMostRecentClientId();
@@ -982,7 +1025,8 @@ DriverControlClient* DeveloperPanelModel::ConnectDriverControlClient(const Proce
             DevDriver::Result connectResult = pDriverControlClient->Connect(currentClientId);
             if (connectResult != Result::Success)
             {
-                // The client failed to connect to the given process. Just return null- the client allocation is managed internally for us.
+                // The client failed to connect to the given process. Release the client and return null - the client allocation is managed internally for us.
+                channelContext.pClient->ReleaseProtocolClient(pDriverControlClient);
                 pDriverControlClient = nullptr;
             }
         }
@@ -1015,6 +1059,7 @@ void DeveloperPanelModel::DisconnectDriverControlClient(DriverControlClient* pDr
     {
         if (pDriverControlClient->IsConnected())
         {
+            pDriverControlClient->Disconnect();
             ChannelContext& channelContext = GetChannelContext();
             if (channelContext.pClient != nullptr)
             {
@@ -1050,9 +1095,20 @@ bool DeveloperPanelModel::ResumeHaltedProcess(DriverControlClient* pDriverContro
             if (resumeResult == Result::Success)
             {
                 RDPUtil::DbgMsg("[RDP] Resumed execution of process '%s', ProcessId = %u. Disconnect client.", processInfo.GetProcessName().toStdString().c_str(), processInfo.GetProcessId());
-
                 resumeSuccessful = true;
             }
+            else if (resumeResult == Result::NotReady)
+            {
+                RDPUtil::DbgMsg("[RDP] Resume driver timed out on client");
+            }
+            else
+            {
+                RDPUtil::DbgMsg("[RDP] Failed to resume driver on client");
+            }
+        }
+        else
+        {
+            RDPUtil::DbgMsg("[RDP] ResumeHaltedProcess failed as DriverControlClient is not connected");
         }
     }
 
@@ -1173,6 +1229,7 @@ bool DeveloperPanelModel::UnregisterModel(MainPanelModels modelType)
     return false;
 }
 
+
 //-----------------------------------------------------------------------------
 /// Retrieve a registered model instance based on the incoming model type.
 /// \param modelType The type of model instance to retrieve.
@@ -1244,4 +1301,27 @@ int DeveloperPanelModel::GetProcessInfoModelIndexByProcessId(DevDriver::ProcessI
     }
 
     return -1;
+}
+
+//-----------------------------------------------------------------------------
+/// Get a pointer to URI protocol client
+/// \return a valid pointer, else null
+//-----------------------------------------------------------------------------
+DevDriver::URIProtocol::URIClient* DeveloperPanelModel::GetUriClient()
+{
+    DevDriver::URIProtocol::URIClient* pClient = nullptr;
+
+    ChannelContext& channelContext = GetChannelContext();
+    if (channelContext.pClient != nullptr)
+    {
+        DevDriver::IMsgChannel* pMessageChannel = channelContext.pClient->GetMessageChannel();
+
+        if (pMessageChannel != nullptr)
+        {
+            using namespace DevDriver::URIProtocol;
+            pClient = static_cast<DevDriver::URIProtocol::URIClient*>(channelContext.pClient->AcquireProtocolClient<DevDriver::Protocol::URI>());
+        }
+    }
+
+    return pClient;
 }

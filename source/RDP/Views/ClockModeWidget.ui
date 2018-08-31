@@ -64,17 +64,17 @@
 
 QCheckBox::indicator::unchecked 
 {
-    image: url(:/images/DefaultClockOff.png);
+    image: url(:/assets/DefaultClockOff.png);
 }
 
 QCheckBox::indicator::checked 
 {
-    image: url(:/images/DefaultClockOn.png);
+    image: url(:/assets/DefaultClockOn.png);
 }
 
 QCheckBox::indicator::unchecked:hover
 {
-    image: url(:/images/DefaultClockHover.png);
+    image: url(:/assets/DefaultClockHover.png);
 }</string>
          </property>
         </widget>

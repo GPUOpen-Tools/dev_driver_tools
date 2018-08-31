@@ -41,6 +41,8 @@
 #endif
 #endif
 
+#include <inttypes.h>
+
 #if defined(_WIN32)
 #include "win/ddWinPlatform.h"
 #elif defined(__APPLE__) || defined(__linux__)
@@ -243,6 +245,10 @@ namespace DevDriver
 
         void Strncpy(char* pDst, const char* pSrc, size_t dstSize);
 
+        char* Strtok(char* pDst, const char* pDelimiter, char** ppContext);
+
+        void Strcat(char* pDst, const char* pSrc);
+
         void Snprintf(char* pDst, size_t dstSize, const char* format, ...);
         void Vsnprintf(char* pDst, size_t dstSize, const char* format, va_list args);
     }
@@ -260,6 +266,38 @@ namespace DevDriver
         {
             DD_PRINT_FUNC(logLevel, format, Platform::Forward<Ts>(args)...);
         }
+    }
+
+    // Increments a const pointer by numBytes by first casting it to a const uint8*.
+    constexpr const void* VoidPtrInc(
+        const void* pPtr,
+        size_t      numBytes)
+    {
+        return (static_cast<const uint8*>(pPtr) + numBytes);
+    }
+
+    // Increments a pointer by numBytes by first casting it to a uint8*.
+    constexpr void* VoidPtrInc(
+        void*  pPtr,
+        size_t numBytes)
+    {
+        return (static_cast<uint8*>(pPtr) + numBytes);
+    }
+
+    // Decrements a const pointer by numBytes by first casting it to a const uint8*.
+    constexpr const void* VoidPtrDec(
+        const void* pPtr,
+        size_t      numBytes)
+    {
+        return (static_cast<const uint8*>(pPtr) - numBytes);
+    }
+
+    // Decrements a pointer by numBytes by first casting it to a uint8*.
+    constexpr void* VoidPtrDec(
+        void*  pPtr,
+        size_t numBytes)
+    {
+        return (static_cast<uint8*>(pPtr) - numBytes);
     }
 
     //---------------------------------------------------------------------

@@ -12,6 +12,7 @@
 #include <QSystemTrayIcon>
 #include "../../DevDriverComponents/listener/listenerCore.h"
 #include "../../DevDriverComponents/inc/ddTransferManager.h"
+#include "../../DevDriverComponents/inc/ddUriInterface.h"
 
 class QAction;
 class QMenu;
@@ -26,13 +27,17 @@ class MainWindow;
 }
 
 /// A URI service used to command RDS remotely.
-class CommandService : public DevDriver::URIProtocol::URIService
+class CommandService : public DevDriver::IService
 {
 public:
-    CommandService() : URIService("command") {}
+    CommandService() {}
     virtual ~CommandService() {}
 
-    virtual DevDriver::Result HandleRequest(DevDriver::URIProtocol::URIRequestContext* pContext) override;
+    virtual const char* GetName() const override { return "command"; }
+
+    virtual DevDriver::Version GetVersion() const override { return 1; }
+
+    virtual DevDriver::Result HandleRequest(DevDriver::IURIRequestContext* pContext) override;
 };
 
 /// The main window implementation for RDS.

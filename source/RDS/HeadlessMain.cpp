@@ -65,9 +65,9 @@ BOOL ConsoleCloseHandler(DWORD dwCtrlType)
 //--------------------------------------------------------------
 /// Handler that gets called when the SIGTERM signal is caught
 //--------------------------------------------------------------
-
-void SigHandler()
+void SigHandler(int signal)
 {
+    DD_UNUSED(signal);
     s_exit = true;
 }
 
@@ -117,8 +117,8 @@ int main(int argc, char* argv[])
 #else
     // install signal handlers on Linux
     SignalHandler signalHandler;
-    signalHandler.AddHandler((__sighandler_t)SigHandler, SIGTERM);
-    signalHandler.AddHandler((__sighandler_t)SigHandler, SIGINT);
+    signalHandler.AddHandler(SigHandler, SIGTERM);
+    signalHandler.AddHandler(SigHandler, SIGINT);
 #endif // WIN32
 
     ListenerBindAddress address = {};

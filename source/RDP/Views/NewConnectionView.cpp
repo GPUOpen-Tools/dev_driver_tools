@@ -180,8 +180,8 @@ void NewConnectionView::UpdateConnectButton() const
     const RDSConnectionInfo& connectionInfo = m_pConnectionSettingsModel->GetConnectionCreateInfo();
 
     // Update the connect button depending on values
-    const QString& hostName = QString(connectionInfo.rdsInfo.transportCreateInfo.hostInfo.hostname);
-    uint16_t port = connectionInfo.rdsInfo.transportCreateInfo.hostInfo.port;
+    const QString& hostName = QString(connectionInfo.rdsInfo.connectionInfo.hostname);
+    uint16_t port = connectionInfo.rdsInfo.connectionInfo.port;
 
 #ifdef Q_OS_WIN
     if ((hostName.isEmpty()) || ((port == 0) && (hostName != gs_LOCAL_HOST_IP)))

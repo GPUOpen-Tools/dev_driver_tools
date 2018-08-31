@@ -1,12 +1,3 @@
-# build the targets
-cd output/Release
-make -j5
-cd ../..
+#!/bin/bash
 
-# Tell RGP to look in the local lib path rather than the Qt install path
-if [[ `uname` != "Darwin" ]]; then
-    chrpath -r '$ORIGIN/qt/lib' Release/RadeonDeveloperPanel
-    chrpath -r '$ORIGIN/qt/lib' Release/RadeonDeveloperService
-fi
-
-./postbuild.sh Release
+./build.sh

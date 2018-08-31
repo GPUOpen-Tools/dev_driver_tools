@@ -1,5 +1,5 @@
 //=============================================================================
-/// Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+/// Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
 /// \author AMD Developer Tools Team
 /// \file
 /// \brief  Define all settings that apply to the Radeon Developer Panel.
@@ -11,6 +11,7 @@
 #include <QColor>
 #include <QVector>
 #include <QMap>
+#include <QVariant>
 #include "../../DevDriverComponents/inc/protocols/driverControlProtocol.h"
 #include "../../DevDriverComponents/inc/devDriverClient.h"
 
@@ -34,7 +35,7 @@ struct RDPApplicationSettingsFile
 /// Structure containing all data serialized for each row in the Recent Connections table.
 struct RDSConnectionInfo
 {
-    DevDriver::DevDriverClientCreateInfo rdsInfo;  ///< The connection info structure used to connect to RDS.
+    DevDriver::ClientCreateInfo rdsInfo;  ///< The connection info structure used to connect to RDS.
     QString hostnameString; ///< The host name
     QString ipString;       ///< The IP address or hostname, as a string.
     uint16_t port;          ///< The port number
@@ -45,11 +46,11 @@ struct RDSConnectionInfo
 /// Structure containing all data serialized for each row in the Setup Target Application table.
 struct RDSTargetApplicationInfo
 {
-    QString processName;    ///< Process name (name of the executable).
-    QString titleName;      ///< Title name (the internal full name of the application, if it exists).
-    QString apiName;        ///< The API that this application uses.
-    bool applySettings;     ///< Are settings to be applied next time round to this application?
-    bool allowProfiling;    ///< Is profiling allowed for this application?
+    QString processName;             ///< Process name (name of the executable).
+    QString titleName;               ///< Title name (the internal full name of the application, if it exists).
+    QString apiName;                 ///< The API that this application uses.
+    bool applySettings;              ///< Are settings to be applied next time round to this application?
+    bool allowProfiling;             ///< Is profiling allowed for this application?
 };
 
 /// An enumeration that contains Ids for all items that need to be saved in the RDP Settings file.
@@ -74,6 +75,21 @@ enum RDPSettingID
     RDP_SETTING_RGP_ALLOW_COMPUTE_PRESENTS,
     RDP_SETTING_RGP_TRACE_OUTPUT_PATH_STRING,
     RDP_SETTING_RGP_PATH_STRING,
+
+    // Pipeline binaries settings
+    RDP_SETTING_PIPELINE_BINARIES_OUTPUT_PATH_STRING,
+    RDP_SETTING_PIPELINE_BINARIES_EDITOR_PATH_STRING,
+    RDP_SETTING_PIPELINE_BINARIES_BROWSE_PATH_STRING,
+    RDP_SETTING_PIPELINE_BINARIES_EDITOR_ENABLE_LAUNCH,
+    RDP_SETTING_PIPELINE_BINARIES_ENABLE_AUTO_REASSEMBLY,
+    RDP_SETTING_PIPELINE_BINARIES_OW_ENABLE_RDP,
+    RDP_SETTING_PIPELINE_BINARIES_OW_ENABLE_DISASSEMBLY,
+    RDP_SETTING_PIPELINE_BINARIES_OW_ENABLE_REASSEMBLY,
+    RDP_SETTING_PIPELINE_BINARIES_OW_ENABLE_TIMESTAMPS,
+    RDP_SETTING_PIPELINE_BINARIES_OW_ENABLE_WORD_WRAP,
+
+    // Version number setting
+    RDP_SETTING_VERSION_STRING,
 
     RDP_SETTING_COUNT,
 };
@@ -101,6 +117,7 @@ public:
     bool LoadSettings();
     void SaveSettings();
 
+    bool VersionExists();
     void AddPotentialSetting(const QString& name, const QString& value);
     RDPApplicationSettingsFile* CreateAppSettingsFile();
     void WriteApplicationSettingsFile(ApplicationSettingsFile* pSettingsFile);
@@ -108,7 +125,7 @@ public:
     void AddAppSettingsFile(RDPApplicationSettingsFile* recentFile) { m_recentAppSettingsFiles.push_back(recentFile); }
     void CloseAppSettingsFile(const QString& settingFilename);
 
-    bool AddRecentConnection(const RDSConnectionInfo& connectionInfo);
+    bool AddRecentConnection(const RDSConnectionInfo& connectionInfo, bool loading = false);
     bool RemoveRecentConnection(int connectionIndex);
     const RecentConnectionVector& GetRecentConnections() const { return m_recentConnections; }
 
@@ -119,7 +136,6 @@ public:
     bool isAllowTargetApplicationProfiling(int index);
     bool isApplyDriverSettingsState(int index);
     TargetApplicationVector GetTargetApplications() const { return m_targetApplications; }
-
     void LoadProcessBlacklist();
     bool CheckBlacklistMatch(const QString& processName);
 
@@ -137,8 +153,20 @@ public:
     bool GetRGPAllowComputePresents() const;
     QString GetRGPTraceOutputPath() const;
     QString GetDefaultTraceOutputPath() const;
+    QString GetDefaultPipelineBinsOutputPath() const;
     QString GetLastTargetExecutableDirectory() const;
     QString GetPathToRGP() const;
+    QString GetPipelineBinariesOutputPath() const;
+    QString GetPipelineBinariesEditorPath() const;
+    QString GetPipelineBinariesBrowsePath() const;
+    bool GetPipelineBinariesEditorEnableLaunch() const;
+    bool GetPipelineBinariesEnableAutoReassembly() const;
+    bool GetPipelineBinariesOWEnableRDP() const;
+    bool GetPipelineBinariesOWEnableDisassembly() const;
+    bool GetPipelineBinariesOWEnableReassembly() const;
+    bool GetPipelineBinariesOWEnableTimestamps() const;
+    bool GetPipelineBinariesOWEnableWordWrap() const;
+    QString GetVersionString() const;
     DevDriver::DriverControlProtocol::DeviceClockMode GetUserClockMode() const;
 
     void SetWindowSize(const int width, const int height);
@@ -151,17 +179,32 @@ public:
     void SetRGPTraceOutputPath(const QString& tracePath);
     void SetLastTargetExecutableDirectory(const QString& executableDirectory);
     void SetPathToRGP(const QString& rgpPathString);
-    void SetUserClockMode(DevDriver::DriverControlProtocol::DeviceClockMode clockMode);
+    void SetPipelineBinariesOutputPath(const QString& path);
+    void SetPipelineBinariesEditorPath(const QString& path);
+    void SetPipelineBinariesBrowsePath(const QString& path);
+    void SetVersionString(const QString& versionString);
+    void SetPipelineBinariesEditorEnableLaunch(bool launchEditor);
+    void SetPipelineBinariesEnableAutoReassembly(bool autoReassembly);
+    void SetPipelineBinariesOWEnableRDP(bool enable);
+    void SetPipelineBinariesOWEnableDisassembly(bool enable);
+    void SetPipelineBinariesOWEnableReassembly(bool enable);
+    void SetPipelineBinariesOWEnableTimestamps(bool enable);
+    void SetPipelineBinariesOWEnableWordWrap(bool enable);
+    void SetUserClockMode(DevDriver::DriverControlProtocol::DeviceClockMode clockMode, bool loading = false);
 
 private:
     void InitDefaultSettings();
     void AddActiveSetting(RDPSettingID id, const RDPSetting& setting);
     bool GetBoolValue(RDPSettingID settingId) const;
     int GetIntValue(RDPSettingID settingId) const;
+    uint64_t GetUnsignedInt64Value(RDPSettingID settingId) const;
+    void GetStringListValue(RDPSettingID settingId, QStringList& stringListOut) const;
     QColor GetColorValue(RDPSettingID settingId) const;
     QString GetStringValue(RDPSettingID settingId) const;
     void SetBoolValue(RDPSettingID settingId, const bool value);
     void SetIntValue(RDPSettingID settingId, const int value);
+    void SetUnsignedInt64Value(RDPSettingID settingId, const uint64_t value);
+    void SetStringListValue(RDPSettingID settingId, const QStringList& value);
     void SetColorValue(RDPSettingID settingId, const QColor& value);
     void SetStringValue(RDPSettingID settingId, const QString& value);
     void RemoveRecentFile(const QString& fileName);

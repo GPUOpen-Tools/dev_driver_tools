@@ -1,11 +1,5 @@
 cmake_minimum_required (VERSION 2.6)
 
-# switch on the autogenerators needed for Qt. Includes the MetaObject Compiler (MOC),
-# the UI compiler (UIC) and the resource compiler (RCC)
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTORCC ON)
-
 if(POLICY CMP0020)
   cmake_policy(SET CMP0020 OLD)
 endif()
@@ -15,17 +9,11 @@ include_directories(AFTER)
 
 include_directories(../../../Common/Lib/AMD/ADL/include)
 
-find_package(Qt5 COMPONENTS Core Widgets REQUIRED)
-
-if(WIN32)
-    SET(QT_USE_QTMAIN TRUE)
-endif(WIN32)
-
 IF(WIN32)
-  add_compile_options(/W4 /wd4127 /wd4201 /wd4714 /MP -DBUILD_DLL -DGPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=30)
+  add_compile_options(/W4 /wd4127 /wd4201 /wd4714 /MP -DBUILD_DLL)
 ELSEIF(UNIX)
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG")
-  add_compile_options(-std=c++11 -D_LINUX -Wall -Wextra -Wmissing-field-initializers -Wno-unused-variable -DGPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=30)
+  add_compile_options(-std=c++11 -D_LINUX -Wall -Wextra -Wmissing-field-initializers -Wno-unused-variable)
 ENDIF(WIN32)
 
 set ( DEVDRIVERSOURCES
@@ -49,12 +37,14 @@ set ( DEVDRIVERSOURCES
  "../DevDriverComponents/listener/clientmanagers/abstractClientManager.h"
  "../DevDriverComponents/listener/clientmanagers/listenerClientManager.h"
  "../DevDriverComponents/listener/clientmanagers/listenerClientManager.cpp"
+ "../DevDriverComponents/src/imported/metrohash/src/metrohash64.cpp"
  "../DevDriverComponents/src/baseProtocolClient.cpp"
  "../DevDriverComponents/src/baseProtocolServer.cpp"
  "../DevDriverComponents/src/ddClientURIService.cpp"
  "../DevDriverComponents/src/ddClientURIService.h"
  "../DevDriverComponents/src/ddSocket.h"
  "../DevDriverComponents/src/ddTransferManager.cpp"
+ "../DevDriverComponents/src/ddURIRequestContext.cpp"
  "../DevDriverComponents/src/devDriverClient.cpp"
  "../DevDriverComponents/src/devDriverServer.cpp"
  "../DevDriverComponents/src/messageChannel.h"
@@ -65,6 +55,7 @@ set ( DEVDRIVERSOURCES
  "../DevDriverComponents/src/sessionManager.cpp"
  "../DevDriverComponents/src/socketMsgTransport.h"
  "../DevDriverComponents/src/socketMsgTransport.cpp"
+ "../DevDriverComponents/src/protocols/ddSettingsService.cpp"
  "../DevDriverComponents/src/protocols/ddGpuCrashDumpClient.cpp"
  "../DevDriverComponents/src/protocols/ddGpuCrashDumpServer.cpp"
  "../DevDriverComponents/src/protocols/ddTransferClient.cpp"
@@ -80,6 +71,9 @@ set ( DEVDRIVERSOURCES
  "../DevDriverComponents/src/protocols/rgpServer.cpp"
  "../DevDriverComponents/src/protocols/settingsClient.cpp"
  "../DevDriverComponents/src/protocols/settingsServer.cpp"
+ "../DevDriverComponents/src/util/ddTextWriter.cpp"
+ "../DevDriverComponents/src/util/ddJsonWriter.cpp"
+ "../DevDriverComponents/inc/util/sharedptr.h"
 )
 
 set( WINDOWS_DD_SOURCES
@@ -113,13 +107,29 @@ set ( SOURCES
 set (WINDOWS_SOURCES
  "ADLGetDriverVersion.cpp"
  "ADLGetDriverVersion.h"
+ "Windows/DevDriverAPI.rc"
+ "Windows/resource.h"
 )
 
+# set platform postfix. For Windows 64 bit, use -x64, for Linux 32 bit, use 32
+IF(CMAKE_CL_64)
+ IF(WIN32)
+  set( EXE_PLATFORM_POSTFIX -x64)
+ ENDIF(WIN32)
+ELSE(CMAKE_CL_64)
+ IF(NOT WIN32)
+  set( EXE_PLATFORM_POSTFIX 32 )
+ ENDIF(NOT WIN32)
+ENDIF(CMAKE_CL_64)
+
+# set internal build postfix
 IF(INTERNAL_BUILD)
- set( EXECUTABLE DevDriverAPI-Internal )
+ set( INTERNAL_POSTFIX -Internal )
 ELSE(INTERNAL_BUILD)
- set( EXECUTABLE DevDriverAPI )
-ENDIF(INTERNAL_BUILD)
+ set( INTERNAL_POSTFIX )
+ENDIF(INTERNAL_BUILD )
+
+set( EXECUTABLE DevDriverAPI${EXE_PLATFORM_POSTFIX}${DEBUG_POSTFIX}${INTERNAL_POSTFIX} )
 
 # Specify output executable name. For windows, indicate this is a Windows application
 # and not a console application
@@ -127,15 +137,23 @@ IF(WIN32)
  add_library(${EXECUTABLE} SHARED ${SOURCES} ${WINDOWS_SOURCES} ${DEVDRIVERSOURCES} ${WINDOWS_DD_SOURCES})
  include(GenerateExportHeader)
  generate_export_header(${EXECUTABLE})
- IF(INTERNAL_BUILD)
-  add_custom_command(TARGET ${EXECUTABLE}
-                     POST_BUILD
-                     COMMAND $(SolutionDir)../postbuild-internal.bat $(Configuration))
- ELSE(INTERNAL_BUILD)
-  add_custom_command(TARGET ${EXECUTABLE}
-                     POST_BUILD
-                     COMMAND $(SolutionDir)../postbuild.bat $(Configuration))
- ENDIF(INTERNAL_BUILD)
+ 
+ IF(CMAKE_CL_64)
+  set( PLATFORM_POSTFIX x64)
+ ELSE(CMAKE_CL_64)
+  set( PLATFORM_POSTFIX x86 )
+ ENDIF(CMAKE_CL_64)
+ 
+ add_custom_command(TARGET ${EXECUTABLE}
+                    POST_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E make_directory $(SolutionDir)../$(Configuration)${INTERNAL_POSTFIX}/DevDriverAPI/bin
+                    COMMAND ${CMAKE_COMMAND} -E make_directory $(SolutionDir)../$(Configuration)${INTERNAL_POSTFIX}/DevDriverAPI/bin/${PLATFORM_POSTFIX}
+                    COMMAND ${CMAKE_COMMAND} -E make_directory $(SolutionDir)../$(Configuration)${INTERNAL_POSTFIX}/DevDriverAPI/lib
+                    COMMAND ${CMAKE_COMMAND} -E make_directory $(SolutionDir)../$(Configuration)${INTERNAL_POSTFIX}/DevDriverAPI/lib/${PLATFORM_POSTFIX}
+					COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/$(Configuration)/${EXECUTABLE}.lib $(SolutionDir)../$(Configuration)${INTERNAL_POSTFIX}/DevDriverAPI/lib/${PLATFORM_POSTFIX}
+					COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/$(Configuration)/${EXECUTABLE}.exp $(SolutionDir)../$(Configuration)${INTERNAL_POSTFIX}/DevDriverAPI/lib/${PLATFORM_POSTFIX}
+                    COMMAND move $(SolutionDir)../$(Configuration)${INTERNAL_POSTFIX}/${EXECUTABLE}.* $(SolutionDir)../$(Configuration)${INTERNAL_POSTFIX}/DevDriverAPI/bin/${PLATFORM_POSTFIX}
+                    )
 ELSEIF(APPLE)
  add_library(${EXECUTABLE} SHARED ${SOURCES} ${DEVDRIVERSOURCES} ${LINUX_DD_SOURCES})
 ELSEIF(UNIX)
@@ -146,8 +164,11 @@ ENDIF(WIN32)
 IF(WIN32)
  target_link_libraries(${EXECUTABLE} tdh.lib)
 ELSEIF(UNIX)
- target_link_libraries(${EXECUTABLE} pthread rt)
-ENDIF()
+ target_link_libraries(${EXECUTABLE} pthread)
+ IF(NOT CMAKE_CL_64)
+  set_target_properties(${EXECUTABLE} PROPERTIES COMPILE_FLAGS "-m32" LINK_FLAGS "-m32")
+ ENDIF(NOT CMAKE_CL_64)
+ENDIF(WIN32)
 
 IF(WIN32)
 # Create Visual Studio filters so that the source files in the project match the

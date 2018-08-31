@@ -1,5 +1,5 @@
 //=============================================================================
-/// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+/// Copyright (c) 2017 - 2018 Advanced Micro Devices, Inc. All rights reserved.
 /// \author AMD Developer Tools Team
 /// \file
 /// \brief  Header for the Application List Treeview.
@@ -30,8 +30,8 @@ public:
 protected:
     virtual void mouseReleaseEvent(QMouseEvent* pEvent);
 
-private:
-    SetupTargetApplicationModel*    m_pTargetApplicationModel;      ///< Model for target application pane
+protected:
+    SetupTargetApplicationModel*      m_pTargetApplicationModel;     ///< Model for target application pane
 };
 
 /// Header view for the AppListTreeView. This allows interception of mouse press

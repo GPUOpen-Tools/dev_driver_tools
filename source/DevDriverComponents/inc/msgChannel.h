@@ -34,6 +34,9 @@
 #include "protocolClient.h"
 #include "protocolServer.h"
 #include "msgTransport.h"
+#include "ddUriInterface.h"
+#include "util/string.h"
+#include "util/vector.h"
 
 namespace DevDriver
 {

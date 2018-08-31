@@ -31,6 +31,8 @@
 #pragma once
 
 #include "baseProtocolServer.h"
+#include "util/string.h"
+#include "util/hashMap.h"
 #include "util/vector.h"
 #include "ddUriInterface.h"
 
@@ -38,6 +40,7 @@ namespace DevDriver
 {
     namespace URIProtocol
     {
+        static const char* kInternalServiceName = "internal";
 
         // The protocol server implementation for the uri protocol.
         class URIServer : public BaseProtocolServer
@@ -46,12 +49,12 @@ namespace DevDriver
             explicit URIServer(IMsgChannel* pMsgChannel);
             ~URIServer();
 
-            void Finalize() override;
+            void Finalize() override final;
 
-            bool AcceptSession(const SharedPointer<ISession>& pSession) override;
-            void SessionEstablished(const SharedPointer<ISession>& pSession) override;
-            void UpdateSession(const SharedPointer<ISession>& pSession) override;
-            void SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason) override;
+            bool AcceptSession(const SharedPointer<ISession>& pSession) override final;
+            void SessionEstablished(const SharedPointer<ISession>& pSession) override final;
+            void UpdateSession(const SharedPointer<ISession>& pSession) override final;
+            void SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason) override final;
 
             // Adds a service to the list of registered server.
             Result RegisterService(IService* pService);
@@ -59,17 +62,41 @@ namespace DevDriver
             // Removes a service from the list of registered server.
             Result UnregisterService(IService* pService);
 
+            // Looks up the service to validate the block size requested by a client for a specific URI request.
+            Result ValidatePostRequest(const char* pServiceName, char* pRequestArguments, uint32 sizeRequested);
+
         private:
+            // This struct is used to cache information about registered URI services to lookup services and efficiently
+            // respond to "services" and "version" queries.
+            struct ServiceInfo
+            {
+                IService*                             pService;
+                FixedString<kMaxUriServiceNameLength> name;
+                Version                               version;
+            };
+
             // Returns a pointer to a service that was registered with a name that matches pServiceName.
             // Returns nullptr if there is no service registered with a matching name.
             IService* FindService(const char* pServiceName);
 
+#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
+            // Looks up and services the request provided.
+            Result ServiceRequest(const char*         pServiceName,
+                                  IURIRequestContext* pRequestContext);
+#else
+            // Looks up and services the request provided.
+            // Deprecated
+            Result ServiceRequest(const char*        pServiceName,
+                                  URIRequestContext* pRequestContext);
+#endif
+
             // Mutex used for synchronizing the registered services list.
             Platform::Mutex m_mutex;
 
-            // A list of all the registered services.
-            // @todo: Replace this vector with a map.
-            Vector<IService*, 8> m_registeredServices;
+            // A hashmap of all the registered services.
+            HashMap<uint64, ServiceInfo, 8> m_registeredServices;
+
+            class URISession;
         };
     }
 } // DevDriver

@@ -233,7 +233,7 @@ void RDPSettingsReader::ReadRecentConnection()
         }
     }
 
-    m_pRdpSettings->AddRecentConnection(connectionInfo);
+    m_pRdpSettings->AddRecentConnection(connectionInfo, true);
 }
 
 //-----------------------------------------------------------------------------
@@ -283,7 +283,7 @@ void RDPSettingsReader::ReadTargetApplication()
             bool applySettingsBool = (applySettingsString.toInt() == 1);
             appInfo.applySettings = applySettingsBool;
         }
-        else if (m_reader.name() == "AllowProfiling")
+        else if (m_reader.name().compare(QString("AllowProfiling")) == 0)
         {
             // Read the bool as a string, and then convert the string to an actual bool.
             const QString allowProfilingString = m_reader.readElementText();
@@ -318,5 +318,6 @@ void RDPSettingsReader::ReadUserClockMode()
         clockMode = DevDriver::DriverControlProtocol::DeviceClockMode::Profiling;
     }
 
-    m_pRdpSettings->SetUserClockMode(clockMode);
+    m_pRdpSettings->SetUserClockMode(clockMode, true);
 }
+

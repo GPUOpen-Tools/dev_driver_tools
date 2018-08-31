@@ -12,6 +12,7 @@
 #include "../../DevDriverComponents/inc/protocols/driverControlProtocol.h"
 #include "../Views/NotificationWidget.h"
 #include <QtGlobal>
+#include <QDateTime>
 
 class QFont;
 class QTreeView;
@@ -29,6 +30,8 @@ namespace RDPUtil
     NotificationWidget::Button ShowNotification(const QString& title, const QString& message, uint buttons, uint defaultButton = 0);
     NotificationWidget::Button ShowNotification(const QString& title, const QString& message, uint buttons, bool& showDoNotAsk, uint defaultButton = 0);
     void UnregisterLogWindow();
+    QString GetSystemDate(const QDateTime& dateTime, const QString& format);
+    bool FileCopy(const QString& src, const QString& dst, bool overwrite = false);
 }
 
 #endif // _RDP_UTIL_H_

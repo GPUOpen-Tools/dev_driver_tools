@@ -35,8 +35,16 @@ IF (INTERNAL_BUILD)
   add_compile_options(-DRADEON_DRIVER_TOOLS_INTERNAL)
  ENDIF(WIN32)
 ENDIF(INTERNAL_BUILD)
-	
-add_definitions(-DGPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=30)
+
+# Define the switch that RDS/RDP can use if unified driver settings are enabled.
+IF (ENABLE_UNIFIED_DRIVER_SETTINGS)
+  add_definitions(-DENABLE_RADEON_UNIFIED_DRIVER_SETTINGS)
+ENDIF(ENABLE_UNIFIED_DRIVER_SETTINGS)
+
+add_definitions(-DGPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=35)
+IF (ENABLE_DRIVER_LOGGING)
+  add_definitions(-DENABLE_RADEON_DRIVER_LOGGING)
+ENDIF(ENABLE_DRIVER_LOGGING)
 
 # Add .pdb files to Windows release build
 IF(WIN32)
@@ -47,13 +55,16 @@ set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG /OP
 ENDIF(WIN32)
 
 include_directories(source/DevDriverComponents/inc)
+include_directories(source/DevDriverComponents/inc/imported/rapidjson/include)
 include_directories(source/DevDriverComponents/message/inc)
+include_directories(source/DevDriverComponents/src/imported/metrohash/src)
 IF(WIN32)
 include_directories(source/DevDriverComponents/listener)
 ELSE(WIN32)
 add_subdirectory(source/DevDriverComponents/listener)
 ENDIF(WIN32)
 
+if(CMAKE_CL_64)
 # Add the QtCommon Scaling project to the solution.
 include_directories("${PROJECT_SOURCE_DIR}/../QtCommon/Scaling/")
 add_subdirectory (${PROJECT_SOURCE_DIR}/../QtCommon/Scaling obj/QtCommon/Scaling)
@@ -62,8 +73,13 @@ add_subdirectory (${PROJECT_SOURCE_DIR}/../QtCommon/Scaling obj/QtCommon/Scaling
 include_directories("${PROJECT_SOURCE_DIR}/../QtCommon/Util/")
 add_subdirectory (${PROJECT_SOURCE_DIR}/../QtCommon/Util obj/QtCommon/Util)
 
+# Add the QtCommon QtCustomWidgets project to the solution.
+include_directories("${PROJECT_SOURCE_DIR}/../QtCommon/CustomWidgets/")
+add_subdirectory (${PROJECT_SOURCE_DIR}/../QtCommon/CustomWidgets obj/QtCommon/CustomWidgets)
+
 # Add RDS and RDP projects to solution.
-add_subdirectory(source/DevDriverComponents/src         obj/DevDriverComponents)
 add_subdirectory(source/RDS                             obj/RDS)
 add_subdirectory(source/RDP                             obj/RDP)
+ENDIF(CMAKE_CL_64)
+add_subdirectory(source/DevDriverComponents/src         obj/DevDriverComponents)
 add_subdirectory(source/DevDriverAPI                    obj/DevDriverAPI)

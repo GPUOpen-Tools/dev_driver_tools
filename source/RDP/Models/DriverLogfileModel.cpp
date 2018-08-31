@@ -1,5 +1,5 @@
 //=============================================================================
-/// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+/// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 /// \author AMD Developer Tools Team
 /// \file
 /// \brief  A model used to store driver log file lines.
@@ -8,52 +8,165 @@
 #include "DriverLogfileModel.h"
 #include "../RDPDefinitions.h"
 
-//-----------------------------------------------------------------------------
-/// Retrieve the number of rows stored within the log file.
-/// \param parent The parent ModelIndex for the ListView.
-/// \returns The count of rows to be displayed using this model.
-//-----------------------------------------------------------------------------
-int DriverLogfileModel::rowCount(const QModelIndex& parent) const
-{
-    RDP_UNUSED(parent);
-    return m_logMessageLines.size();
-}
+static const char s_TimestampFormat[] = "yyyy-MM-dd hh:mm:ss.zzz";
 
 //-----------------------------------------------------------------------------
-/// Handler used to supply data to the logfile viewer.
-/// \param index The index of the model data to be supplied.
-/// \param role The role to update in the viewer.
-/// \returns A QVariant value to be placed in the viewer at the index.
-//-----------------------------------------------------------------------------
-QVariant DriverLogfileModel::data(const QModelIndex &index, int role) const
-{
-    if (role == Qt::DisplayRole && index.isValid())
-    {
-        int lineIndex = index.row();
-        if (lineIndex >= 0 && lineIndex < m_logMessageLines.size())
-        {
-            const QString& logLine = m_logMessageLines.at(lineIndex);
-            return logLine;
-        }
-    }
-
-    return QVariant();
-}
-
-//-----------------------------------------------------------------------------
-/// Handler used to supply the correct header text for the Process ListView.
-/// \param section The index of the section whose header text will be updated.
-/// \param orientation The table orientation of the header text.
-/// \param role The role to update in the ListView.
-/// \returns A QVariant value to be placed in the ListView header.
+/// Retrieves column data for the model
+/// \param section The column ID number
+/// \param orientation Horizontal or Vertical
+/// \param role The attribute for the column to retrieve
+/// \return The name or attribute for the column.
 //-----------------------------------------------------------------------------
 QVariant DriverLogfileModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
-    Q_UNUSED(section);
-    Q_UNUSED(orientation);
-    Q_UNUSED(role);
+    QVariant result(QAbstractTableModel::headerData(section, orientation, role));
 
-    return QVariant();
+    if (orientation == Qt::Horizontal)
+    {
+        if (role == Qt::DisplayRole)
+        {
+            if ((section >= 0) && (section < COLUMN_COUNT))
+            {
+                result = ColumnNameLookup((ColumnIDs)section);
+            }
+        }
+    }
+    return result;
+}
+
+//-----------------------------------------------------------------------------
+/// The number of rows in the model.
+/// \param parent The parent index for tree models (not used).
+/// \return The row count.
+//-----------------------------------------------------------------------------
+int DriverLogfileModel::rowCount(const QModelIndex& parent) const
+{
+    Q_UNUSED(parent);
+    return m_modelData.size();
+}
+
+//-----------------------------------------------------------------------------
+/// The number of columns in the model.
+/// \param parent The parent index for tree models (not used).
+/// \return The row count.
+//-----------------------------------------------------------------------------
+int DriverLogfileModel::columnCount(const QModelIndex& parent) const
+{
+    Q_UNUSED(parent);
+    return COLUMN_COUNT;
+}
+
+//-----------------------------------------------------------------------------
+/// Retrieves data for a cell in the model
+/// \param index Identifies the cell to retrieve
+/// \param role the Attribute for the cell to retrieve
+/// \return The value or attribute for the cell.
+//-----------------------------------------------------------------------------
+QVariant DriverLogfileModel::data(const QModelIndex& index, int role) const
+{
+    QVariant result;
+
+    if (index.isValid())
+    {
+        const int row = index.row();
+        if ((row >= 0) && (row <= m_modelData.size()))
+        {
+            if ((role == Qt::DisplayRole) || (role == Qt::EditRole) )
+            {
+                const Schema& rowData = m_modelData.at(row);
+                switch (index.column())
+                {
+                case COLUMN_PROCESS_ID:
+                {
+                    if (role == Qt::DisplayRole)
+                    {
+                        result = QString("0x%1").arg(rowData.processId, 8, 16, (QLatin1Char)'0');
+                    }
+                    else
+                    {
+                        result = rowData.processId;
+                    }
+                    break;
+                }
+
+                case COLUMN_PROCESS_NAME:
+                    result = rowData.processName;
+                    break;
+
+                case COLUMN_TIMESTAMP:
+                {
+                    if (rowData.timestamp.isValid() == true)
+                    {
+                        result = rowData.timestamp.toString(s_TimestampFormat);
+                    }
+                    else
+                    {
+                        result = QString("");
+                    }
+                    break;
+                }
+                case COLUMN_LOG_LINE:
+                    result = rowData.logLine;
+                    break;
+
+                default:
+                    break;
+                }
+            }
+        }
+    }
+    return result;
+}
+
+//-----------------------------------------------------------------------------
+/// Set data for a cell in the model.
+/// \param index Identifies the cell to be set.
+/// \param value The data to store in the model's cell.
+/// \param role The attribute type of the cell data being returned.
+/// \return true if the index is valid and role supported, otherwise returns false.
+//-----------------------------------------------------------------------------
+bool DriverLogfileModel::setData(const QModelIndex& index, const QVariant& value, int role)
+{
+    bool result = false;
+    if (index.isValid())
+    {
+        const int row = index.row();
+        Schema rowData = m_modelData.at(index.row());
+
+        if (role == Qt::EditRole)
+        {
+            result = true;
+            switch (index.column())
+            {
+            case COLUMN_PROCESS_ID:
+                rowData.processId = value.toUInt();
+                break;
+
+            case COLUMN_PROCESS_NAME:
+                rowData.processName = value.toString();
+                break;
+
+            case COLUMN_TIMESTAMP:
+                rowData.timestamp = value.toDateTime();
+                break;
+
+            case COLUMN_LOG_LINE:
+                rowData.logLine = value.toBool();
+                break;
+
+            default:
+                result = false;
+            }
+        }
+
+        if (result == true)
+        {
+            m_modelData.replace(row, rowData);
+            emit dataChanged(index, index);
+        }
+    }
+
+    return result;
 }
 
 //-----------------------------------------------------------------------------
@@ -62,21 +175,37 @@ QVariant DriverLogfileModel::headerData(int section, Qt::Orientation orientation
 //-----------------------------------------------------------------------------
 void DriverLogfileModel::AddLogLine(const QString& logLine)
 {
-    int rowIndex = m_logMessageLines.size();
-    beginInsertRows(QModelIndex(), rowIndex, rowIndex);
-    m_logMessageLines.push_back(logLine);
+    const QDateTime timestamp(QDateTime::currentDateTime());
+    Schema newRowData{ timestamp, "", 0, logLine };
+    int row = m_modelData.count();
+    beginInsertRows(QModelIndex(), row, row);
+    m_modelData.insert(row, newRowData);
     endInsertRows();
+    emit(dataChanged(index(row, 0), index(row, 0)));
 }
-
 //-----------------------------------------------------------------------------
 /// Clear all the log data for this log file.
 //-----------------------------------------------------------------------------
 void DriverLogfileModel::ClearLogfile()
 {
-    if (m_logMessageLines.size() > 0)
+    if (m_modelData.size() > 0)
     {
         beginResetModel();
-        m_logMessageLines.clear();
+        m_modelData.clear();
         endResetModel();
+        emit(dataChanged(QModelIndex(), QModelIndex()));
+    }
+}
+
+//-----------------------------------------------------------------------------
+/// Output a text string containing all of the rows in the model.
+/// \param logTextOut The string to contain the log messages.
+//-----------------------------------------------------------------------------
+void DriverLogfileModel::GetModelText(QString& logTextOut)
+{
+    QString logLineFormat("%1 %2(pid=0x%3) %4\n");
+    foreach(const Schema& rowData, m_modelData)
+    {
+        logTextOut.append(logLineFormat.arg(rowData.timestamp.toString(s_TimestampFormat)).arg(rowData.processName).arg(rowData.processId, 8, 16, (QLatin1Char)'0').arg(rowData.logLine));
     }
 }

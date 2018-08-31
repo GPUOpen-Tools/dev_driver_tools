@@ -31,11 +31,10 @@
 #include "../Models/RGPTraceModel.h"
 #include "../Models/SetupTargetApplicationModel.h"
 #include "../Settings/RDPSettings.h"
-#include "../RDPDefinitions.h"
 #include "ConnectionSettingsView.h"
-#include "DriverLoggerView.h"
 #include "DriverSettingsView.h"
 #include "RGPTraceView.h"
+#include "ConnectionLogView.h"
 #include "LogView.h"
 #include "NotificationWidget.h"
 #include "EmptyDriverSettingsView.h"
@@ -54,6 +53,7 @@ enum TabID
     TAB_ID_SETTINGS,
     TAB_ID_CLOCKS,
     TAB_ID_PROFILING,
+    TAB_ID_PAL_PIPELINES,
     TAB_ID_LOG,
     TAB_ID_COUNT,
 };
@@ -65,7 +65,8 @@ static const QString kTabTitles[] =
     "SETTINGS",
     "CLOCKS",
     "PROFILING",
-    "LOG",
+    "PAL PIPELINES",
+    "DRIVER LOG",
 };
 
 /// The special style applied to the help button embedded in the main tab bar.
@@ -81,17 +82,19 @@ MainWindow::MainWindow(QWidget* pParent) :
     ui(new Ui::MainWindow),
     m_pDeveloperPanelModel(nullptr),
     m_pConnectionSettingsView(nullptr),
-    m_pDriverLoggerView(nullptr),
+    m_pLogView(nullptr),
+    m_pConnectionLogView(nullptr),
     m_pRedIndicatorIcon(nullptr),
     m_pGreenIndicatorIcon(nullptr),
     m_messageOverlayContainer(this),
     m_isExiting(false),
     m_rdsConnected(false),
-    m_lostRDSConnection(false)
+    m_lostRDSConnection(false),
+    m_versionExists(true)
 {
     ui->setupUi(this);
 
-    setWindowIcon(QIcon(":/images/RDP_Icon.png"));
+    setWindowIcon(QIcon(":/assets/RDP_Icon.png"));
 
     // Set white background for this pane
     ToolUtil::SetWidgetBackgroundColor(this, Qt::white);
@@ -115,6 +118,8 @@ MainWindow::MainWindow(QWidget* pParent) :
 
     InitializeInterfaceAndSettings();
 
+    ui->mainTabWidget->removeTab(TAB_ID_LOG);
+
     ToggleConnectedTabs(false);
 
     DisplayDriverWarningMessage();
@@ -132,17 +137,14 @@ MainWindow::~MainWindow()
     m_pConnectionSettingsView->m_disableRdsDisconnectNotification = true;
     SAFE_DELETE(m_pConnectionSettingsView);
     SAFE_DELETE(m_pDriverSettingsView);
-    SAFE_DELETE(m_pDriverLoggerView);
-    SAFE_DELETE(m_pRGPTraceView);
     SAFE_DELETE(m_pLogView);
-
+    SAFE_DELETE(m_pRGPTraceView);
     SAFE_DELETE(m_pRedIndicatorIcon);
     SAFE_DELETE(m_pGreenIndicatorIcon);
     SAFE_DELETE(m_pNotificationOverlay);
-
-//    SAFE_DELETE(m_pDeveloperPanelModel);
     SAFE_DELETE(ui);
 }
+
 
 //-----------------------------------------------------------------------------
 /// Initialize the main RDP window, loading settings for anything that needs to be re-populated from disk.
@@ -153,6 +155,11 @@ void MainWindow::InitializeInterfaceAndSettings()
     m_pLogView = new LogView(this);
     ui->logTabLayoutGrid->addWidget(m_pLogView);
 
+    // create the connection log view. The ConnectionSettingsView will take ownership of this
+    // so Qt will handle its deletion
+    m_pConnectionLogView = new ConnectionLogView();
+    Q_ASSERT(m_pConnectionLogView != nullptr);
+
     // The DeveloperPanelModel is the Panel's main model, and maintains a connection to RDS.
     m_pDeveloperPanelModel = new DeveloperPanelModel;
 
@@ -160,7 +167,7 @@ void MainWindow::InitializeInterfaceAndSettings()
 
     // Attach the debug output to forward to "this" window's log message handler.
     RDPUtil::RegisterLogWindow(this);
-    connect(this, SIGNAL(EmitSetText(QString)), this, SLOT(OnLogText(QString)));
+    connect(this, &MainWindow::EmitSetText, this, &MainWindow::OnLogText);
 
     int mainWidth = gs_PRODUCT_DEFAULT_WIDTH;
     int mainHeight = gs_PRODUCT_DEFAULT_HEIGHT;
@@ -170,6 +177,8 @@ void MainWindow::InitializeInterfaceAndSettings()
 
     // Load the application's default settings and any user modifications to them.
     static RDPSettings& rdpSettings = RDPSettings::Get();
+    RDPSettings tempSettings;
+    m_versionExists = tempSettings.VersionExists();
     if (rdpSettings.LoadSettings())
     {
         RDPUtil::DbgMsg("[RDP] Loaded RDP settings file.");
@@ -218,7 +227,7 @@ void MainWindow::InitializeInterfaceAndSettings()
     if (m_pDeveloperPanelModel != nullptr)
     {
         // Create the contents of the main "Connection" tab.
-        m_pConnectionSettingsView = new ConnectionSettingsView(m_pDeveloperPanelModel, this);
+        m_pConnectionSettingsView = new ConnectionSettingsView(m_pDeveloperPanelModel, m_pConnectionLogView, this);
         ui->connectionTabLayoutGrid->addWidget(m_pConnectionSettingsView);
         m_tabs.push_back(ui->connectionTab);
 
@@ -261,8 +270,10 @@ void MainWindow::InitializeInterfaceAndSettings()
         ui->protocolsTabLayoutGrid->addWidget(m_pRGPTraceView);
         m_tabs.push_back(ui->profilingTab);
 
-        // The log tab is the last in the list.
-        m_tabs.push_back(ui->logTab);
+        // remove logging tab. Done before pipeline binaries since its index is higher
+        ui->mainTabWidget->removeTab(TAB_ID_LOG);
+
+        ui->mainTabWidget->removeTab(TAB_ID_PAL_PIPELINES);
 
         // Connect the slot that updates the profiling tab's target process section.
         connect(m_pDeveloperPanelModel, &DeveloperPanelModel::ProfiledProcessInfoUpdate, m_pRGPTraceView, &RGPTraceView::OnProfilingTargetUpdated);
@@ -430,10 +441,10 @@ void MainWindow::OnLogText(const QString& str)
     // Write to the log file.
     LogFileWriter::Get().WriteLog(str);
 
-    // If the log window is alive, display the new line.
-    if (m_pLogView != nullptr)
+    // If the conection log window is alive, display the new line.
+    if (m_pConnectionLogView != nullptr)
     {
-        m_pLogView->AddLogMessage(str);
+        m_pConnectionLogView->AddLogMessage(str);
     }
 }
 
@@ -491,8 +502,8 @@ void MainWindow::SetConnectedControlsEnabled(bool enabled)
 //-----------------------------------------------------------------------------
 void MainWindow::InitializeConnectionIndicator()
 {
-    m_pRedIndicatorIcon = new QIcon(":/images/RedIndicator.png");
-    m_pGreenIndicatorIcon = new QIcon(":/images/GreenIndicator.png");
+    m_pRedIndicatorIcon = new QIcon(":/assets/RedIndicator.png");
+    m_pGreenIndicatorIcon = new QIcon(":/assets/GreenIndicator.png");
 }
 
 //-----------------------------------------------------------------------------
@@ -524,6 +535,15 @@ void MainWindow::OnConnectionStatusUpdated(bool connected, const QString& hostCo
     {
         m_rdsConnected = true;
         m_lostRDSConnection = false;
+
+        // check version string
+        QString oldVersion = RDPSettings::Get().GetVersionString();
+        QString newVersion = ToolUtil::GetFormattedVersionString();
+        if (oldVersion.compare(newVersion) != 0 || m_versionExists == false)
+        {
+            RDPUtil::ShowNotification(gs_VERSION_CHANGED_TITLE, gs_VERSION_CHANGED_TEXT, NotificationWidget::Button::Ok);
+            RDPSettings::Get().SetVersionString(newVersion);
+        }
     }
 }
 
@@ -693,7 +713,11 @@ void MainWindow::BringToForeground()
 }
 
 //-----------------------------------------------------------------------------
-/// Show a warning window with RDC interop limitations
+/// Show a warning window indicating driver incompatibility or update needed.
+/// Reject any driver with a valid version number less than 18.10, including
+/// the 18.10.1 driver.
+/// Drivers which don't have version numbers are allowed through as it's
+/// assumed these will be recent custom drivers.
 //-----------------------------------------------------------------------------
 void MainWindow::DisplayDriverWarningMessage()
 {
@@ -705,10 +729,13 @@ void MainWindow::DisplayDriverWarningMessage()
     bool result = ADLGetDriverVersion(majorVersion, minorVersion, subminorVersion);
     if (result == true)
     {
-        if (majorVersion == 18 && minorVersion == 10 && subminorVersion == 1)
+        bool incompatibleDriver = majorVersion == 18 && minorVersion == 10 && subminorVersion == 1;
+        if (majorVersion < 18 || incompatibleDriver == true)
         {
-            RDPUtil::ShowNotification(gs_DRIVER_WARNING_TITLE, gs_DRIVER_WARNING_TEXT, NotificationWidget::Button::Ok);
+            char driverString[256] = {};
+            ADLGetDriverVersionString(driverString);
+            RDPUtil::ShowNotification(gs_DRIVER_WARNING_TITLE, gs_DRIVER_WARNING_TEXT.arg(driverString), NotificationWidget::Button::Ok);
         }
     }
-#endif
+#endif // def _WIN32
 }

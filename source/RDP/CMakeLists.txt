@@ -23,18 +23,20 @@ if(WIN32)
 endif(WIN32)
 
 IF(WIN32)
-  add_compile_options(/W4 /wd4127 /wd4201 /wd4714 /MP -DGPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=30)
+  add_compile_options(/W4 /wd4127 /wd4201 /wd4714 /MP)
 ELSEIF(UNIX)
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG")
-  add_compile_options(-std=c++11 -D_LINUX -Wall -Wextra -Wmissing-field-initializers -Wno-unused-variable -DGPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=30)
+  add_compile_options(-std=c++11 -D_LINUX -Wall -Wextra -Wmissing-field-initializers -Wno-unused-variable)
 ENDIF(WIN32)
 
 set ( DEVDRIVERSOURCES
+ "../DevDriverComponents/src/imported/metrohash/src/metrohash64.cpp"
  "../DevDriverComponents/src/baseProtocolClient.cpp"
  "../DevDriverComponents/src/baseProtocolServer.cpp"
  "../DevDriverComponents/src/ddClientURIService.cpp"
  "../DevDriverComponents/src/ddSocket.h"
  "../DevDriverComponents/src/ddTransferManager.cpp"
+ "../DevDriverComponents/src/ddURIRequestContext.cpp"
  "../DevDriverComponents/src/devDriverClient.cpp"
  "../DevDriverComponents/src/messageChannel.h"
  "../DevDriverComponents/src/messageChannel.inl"
@@ -54,6 +56,8 @@ set ( DEVDRIVERSOURCES
  "../DevDriverComponents/src/protocols/loggingClient.cpp"
  "../DevDriverComponents/src/protocols/rgpClient.cpp"
  "../DevDriverComponents/src/protocols/settingsClient.cpp"
+ "../DevDriverComponents/src/util/ddTextWriter.cpp"
+ "../DevDriverComponents/src/util/ddJsonWriter.cpp"
 )
 
 set (DEVDRIVERMESSAGELIB
@@ -69,10 +73,10 @@ set( WINDOWS_DD_SOURCES
 )
 
 set( WINDOWS_SOURCES
- "../../images/Computer.png"
- "../../images/RDP_Icon.ico"
- "../../images/RDP_Icon.png"
- "../../images/X.png"
+ "../../assets/Computer.png"
+ "../../assets/RDP_Icon.ico"
+ "../../assets/RDP_Icon.png"
+ "../../assets/X.png"
  "Windows/RDP.rc"
  "Windows/resource.h"
  "../DevDriverAPI/ADLGetDriverVersion.cpp"
@@ -87,6 +91,21 @@ set( LINUX_DD_SOURCES
 set( LINUX_SOURCES
  "../Common/Linux/SignalHandler.cpp"
  "../Common/Linux/SignalHandler.h"
+)
+
+set( INTERNAL_SOURCES
+ "Models/PipelineBinsModel.cpp"
+ "Models/PipelineBinsModel.h"
+ "Models/PipelineBinsWorker.cpp"
+ "Models/PipelineBinsWorker.h"
+ "Views/PipelineBinsView.ui"
+ "Views/PipelineBinsView.cpp"
+ "Views/PipelineBinsView.h"
+ "Views/PipelineBinsOutputWindow.ui"
+ "Views/PipelineBinsOutputWindow.cpp"
+ "Views/PipelineBinsOutputWindow.h"
+ "Models/MultiColumnProxyModel.cpp"
+ "Models/MultiColumnProxyModel.h"
 )
 
 set ( SOURCES
@@ -174,6 +193,8 @@ set ( SOURCES
  "Views/ActiveApplicationsTableView.ui"
  "Views/AppListTreeView.cpp"
  "Views/AppListTreeView.h"
+ "Views/AppListSetupTreeView.cpp"
+ "Views/AppListSetupTreeView.h"
  "Views/CaptureProgressWidget.cpp"
  "Views/CaptureProgressWidget.h"
  "Views/CaptureProgressWidget.ui"
@@ -183,15 +204,15 @@ set ( SOURCES
  "Views/ClocksView.cpp"
  "Views/ClocksView.h"
  "Views/ClocksView.ui"
+ "Views/ConnectionLogView.cpp"
+ "Views/ConnectionLogView.h"
+ "Views/ConnectionLogView.ui"
  "Views/ConnectionStatusView.cpp"
  "Views/ConnectionStatusView.h"
  "Views/ConnectionStatusView.ui"
  "Views/ConnectionSettingsView.cpp"
  "Views/ConnectionSettingsView.h"
  "Views/ConnectionSettingsView.ui"
- "Views/DriverLoggerView.cpp"
- "Views/DriverLoggerView.h"
- "Views/DriverLoggerView.ui"
  "Views/DriverSettingItemWidget.cpp"
  "Views/DriverSettingItemWidget.h"
  "Views/DriverSettingsView.cpp"
@@ -223,12 +244,106 @@ set ( SOURCES
  "Views/SetupTargetApplicationView.cpp"
  "Views/SetupTargetApplicationView.h"
  "Views/SetupTargetApplicationView.ui"
+ "Views/CustomWidgets/ArrowIconComboBox.cpp"
+ "Views/CustomWidgets/ArrowIconComboBox.h"
  "RDPDefinitions.h"
  "Panel.qrc"
  "PanelMain.cpp"
 )
 
+IF(ENABLE_DRIVER_LOGGING)
+set ( DRIVER_LOGGING_SOURCES
+ "Models/DDTagListModel.cpp"
+ "Models/DDTagListModel.h"
+ "Models/DDTagListFilterProxyModel.cpp"
+ "Models/DDTagListFilterProxyModel.h"
+ "Models/DDTagIDList.h"
+ "Models/DriverLogConfigModel.cpp"
+ "Models/DriverLogConfigModel.h"
+ "Views/DriverLogConfigView.cpp"
+ "Views/DriverLogConfigView.h"
+ "Views/DriverLogConfigView.ui"
+ "Views/DriverLogMessageView.cpp"
+ "Views/DriverLogMessageView.h"
+ "Views/DriverLogMessageView.ui"
+ "Views/DriverLogTabView.cpp"
+ "Views/DriverLogTabView.h"
+ "Views/DriverLogTabView.ui"
+ "Views/CustomWidgets/DDTagListView.cpp"
+ "Views/CustomWidgets/DDTagListView.h"
+)
+ENDIF(ENABLE_DRIVER_LOGGING)
+
+IF(ENABLE_UNIFIED_DRIVER_SETTINGS)
+set ( UNIFIED_DRIVER_SETTINGS_SOURCES
+ "Models/EnumListDefinition.cpp"
+ "Models/EnumListDefinition.h"
+ "Models/EnumListValue.cpp"
+ "Models/EnumListValue.h"
+ "Models/DevDriverSettingsDataFormats.h"
+ "Models/DevDriverSettingsFilterProxyModel.cpp"
+ "Models/DevDriverSettingsFilterProxyModel.h"
+ "Models/DevDriverSettingsModel.cpp"
+ "Models/DevDriverSettingsModel.h"
+ "Models/DevDriverSettingsModelTreeNode.cpp"
+ "Models/DevDriverSettingsModelTreeNode.h"
+ "Models/DevDriverSettingsInterface.cpp"
+ "Models/DevDriverSettingsInterface.h"
+ "Models/DDTagListFilterProxyModel.cpp"
+ "Models/DDTagListFilterProxyModel.h"
+ "Models/DDTagListModel.cpp"
+ "Models/DDTagListModel.h"
+ "Models/DDTagIDList.cpp"
+ "Models/DDTagIDList.h"
+ "Models/MultiBaseValue.cpp"
+ "Models/MultiBaseValue.h"
+ "Views/CustomWidgets/ScaledLineEdit.cpp"
+ "Views/CustomWidgets/ScaledLineEdit.h"
+ "Views/CustomWidgets/MultiBaseSpinBox.cpp"
+ "Views/CustomWidgets/MultiBaseSpinBox.h"
+ "Views/CustomWidgets/DevDriverSettingsTreeView.cpp"
+ "Views/CustomWidgets/DevDriverSettingsTreeView.h"
+ "Views/CustomWidgets/DDTagListView.cpp"
+ "Views/CustomWidgets/DDTagListView.h"
+ "Views/Delegates/AppStartOptionComboBoxDelegate.cpp"
+ "Views/Delegates/FilePathDelegate.cpp"
+ "Views/Delegates/FilePathDelegate.h"
+ "Views/Delegates/AppStartOptionComboBoxDelegate.h"
+ "Views/Delegates/DevDriverSettingDelegateBase.h"
+ "Views/Delegates/DevDriverSettingWidgetDelegate.h"
+ "Views/Delegates/DevDriverSettingButtonDelegate.h"
+ "Views/Delegates/DevDriverSettingCheckBoxDelegate.h"
+ "Views/Delegates/DevDriverSettingComboBoxDelegate.h"
+ "Views/Delegates/DevDriverSettingEditBoxDelegate.h"
+ "Views/Delegates/DevDriverSettingLabelDelegate.h"
+ "Views/Delegates/DevDriverSettingListBoxDelegate.h"
+ "Views/Delegates/DevDriverSettingViewDelegate.cpp"
+ "Views/Delegates/DevDriverSettingViewDelegate.h"
+ "Views/Delegates/DevDriverSettingMultiBaseSpinBoxDelegate.h"
+ "Views/Delegates/DevDriverSettingDelegateFactory.cpp"
+ "Views/Delegates/DevDriverSettingDelegateFactory.h"
+ "Views/DevDriverSettingsPaneView.cpp"
+ "Views/DevDriverSettingsPaneView.h"
+ "Views/DevDriverSettingsPaneView.ui"
+ "Views/DevDriverSettingsTargetAppView.cpp"
+ "Views/DevDriverSettingsTargetAppView.h"
+ "Views/DevDriverSettingsTargetAppView.ui"
+ "Views/FilePathWidget.cpp"
+ "Views/FilePathWidget.h"
+ "Views/FilePathWidget.ui"
+ "Views/TagViewContainer.cpp"
+ "Views/TagViewContainer.h"
+ "Views/TagViewContainer.ui"
+ "Views/TagListViewContextMenu.cpp"
+ "Views/TagListViewContextMenu.h"
+ "Views/TagManagerDialog.cpp"
+ "Views/TagManagerDialog.h"
+ "Views/TagManagerDialog.ui"
+)
+ENDIF(ENABLE_UNIFIED_DRIVER_SETTINGS)
+
 IF(INTERNAL_BUILD)
+ set( SOURCES ${SOURCES} ${INTERNAL_SOURCES} )
  set( EXECUTABLE RadeonDeveloperPanel-Internal )
 ELSE(INTERNAL_BUILD)
  set( EXECUTABLE RadeonDeveloperPanel )
@@ -237,22 +352,24 @@ ENDIF(INTERNAL_BUILD)
 # Specify output executable name. For windows, indicate this is a Windows application
 # and not a console application
 IF(WIN32)
-add_executable(${EXECUTABLE} WIN32 ${SOURCES} ${DEVDRIVERSOURCES} ${WINDOWS_DD_SOURCES} ${WINDOWS_SOURCES})
+add_executable(${EXECUTABLE} WIN32 ${SOURCES} ${UNIFIED_DRIVER_SETTINGS_SOURCES} ${DRIVER_LOGGING_SOURCES} ${DEVDRIVERSOURCES} ${WINDOWS_DD_SOURCES} ${WINDOWS_SOURCES})
 ELSEIF(APPLE)
-add_executable(${EXECUTABLE} MACOSX_BUNDLE ${SOURCES} ${DEVDRIVERSOURCES} ${LINUX_DD_SOURCES} ${LINUX_SOURCES})
+add_executable(${EXECUTABLE} MACOSX_BUNDLE ${SOURCES} ${UNIFIED_DRIVER_SETTINGS_SOURCES} ${DRIVER_LOGGING_SOURCES} ${DEVDRIVERSOURCES} ${LINUX_DD_SOURCES} ${LINUX_SOURCES})
 ELSEIF(UNIX)
-add_executable(${EXECUTABLE} ${SOURCES} ${DEVDRIVERSOURCES} ${LINUX_DD_SOURCES} ${LINUX_SOURCES})
+add_executable(${EXECUTABLE} ${SOURCES} ${UNIFIED_DRIVER_SETTINGS_SOURCES} ${DRIVER_LOGGING_SOURCES} ${DEVDRIVERSOURCES} ${LINUX_DD_SOURCES} ${LINUX_SOURCES})
 ENDIF(WIN32)
 
 # executable file library dependency list
 IF(WIN32)
  IF(UWP)
-  target_link_libraries(${EXECUTABLE} Qt5::Widgets Qt5::WinMain QtScaling QtUtil ${DEVDRIVERMESSAGELIB})
+  target_link_libraries(${EXECUTABLE} Qt5::Widgets Qt5::WinMain QtScaling QtUtil QtCustomWidgets ${DEVDRIVERMESSAGELIB})
  ELSE(UWP)
-  target_link_libraries(${EXECUTABLE} Qt5::Widgets Qt5::WinMain QtScaling QtUtil)
+  target_link_libraries(${EXECUTABLE} Qt5::Widgets Qt5::WinMain QtScaling QtUtil QtCustomWidgets)
  ENDIF(UWP)
+ELSEIF(APPLE)
+ target_link_libraries(${EXECUTABLE} Qt5::Widgets QtScaling QtUtil QtCustomWidgets pthread)
 ELSEIF(UNIX)
-target_link_libraries(${EXECUTABLE} Qt5::Widgets QtScaling QtUtil pthread rt)
+ target_link_libraries(${EXECUTABLE} Qt5::Widgets QtScaling QtUtil QtCustomWidgets pthread rt)
 ENDIF()
 
 IF(WIN32)
@@ -263,4 +380,20 @@ foreach(source IN LISTS SOURCES)
     string(REPLACE "/" "\\" source_path_msvc "${source_path}")
     source_group("${source_path_msvc}" FILES "${source}")
 endforeach()
+
+IF(ENABLE_UNIFIED_DRIVER_SETTINGS)
+foreach(source IN LISTS UNIFIED_DRIVER_SETTINGS_SOURCES)
+    get_filename_component(source_path "${source}" PATH)
+    string(REPLACE "/" "\\" source_path_msvc "${source_path}")
+    source_group("${source_path_msvc}" FILES "${source}")
+endforeach()
+ENDIF(ENABLE_UNIFIED_DRIVER_SETTINGS)
+
+IF(ENABLE_DRIVER_LOGGING)
+foreach(source IN LISTS DRIVER_LOGGING_SOURCES)
+    get_filename_component(source_path "${source}" PATH)
+    string(REPLACE "/" "\\" source_path_msvc "${source_path}")
+    source_group("${source_path_msvc}" FILES "${source}")
+endforeach()
+ENDIF(ENABLE_DRIVER_LOGGING)
 ENDIF(WIN32)

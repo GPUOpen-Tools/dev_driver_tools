@@ -23,11 +23,12 @@ class ClocksView;
 class DebugWindow;
 class DeveloperPanelModel;
 class DriverSettingsView;
-class DriverLoggerView;
 class LogView;
+class ConnectionLogView;
 class NotificationWidget;
 class ProcessInfo;
 class RGPTraceView;
+class PipelineBinsView;
 
 namespace Ui {
 class MainWindow;
@@ -80,10 +81,11 @@ private:
     DeveloperPanelModel* m_pDeveloperPanelModel;        ///< The main model instance for RDP.
     ConnectionSettingsView* m_pConnectionSettingsView;  ///< The Connection Settings view.
     DriverSettingsView* m_pDriverSettingsView;          ///< The Driver Settings view.
-    DriverLoggerView* m_pDriverLoggerView;              ///< The Driver Logger view.
+    LogView*      m_pLogView;                           ///< The pane holding the contents of the log.
     RGPTraceView* m_pRGPTraceView;                      ///< The pane holding the contents of the "Profiling" tab.
     ClocksView* m_pClocksView;                          ///< The pane holding the contents of the "Clocks" tab.
-    LogView*      m_pLogView;                           ///< The pane holding the contents of the log.
+
+    ConnectionLogView* m_pConnectionLogView;            ///< The connection log view
     QIcon* m_pRedIndicatorIcon;                         ///< The red connectedness indicator icon.
     QIcon* m_pGreenIndicatorIcon;                       ///< The green connectedness indicator icon.
     NotificationWidget* m_pNotificationOverlay;         ///< A notification widget that can be overlaid on top of RDP.
@@ -92,6 +94,7 @@ private:
     QVector<QWidget*> m_tabs;                           ///< A list of tabs found in the RDP interface.
     bool m_rdsConnected;                                ///< The boolean to indicate whether an instance of RDS is currently running.
     bool m_lostRDSConnection;                           ///< The boolean to indicate if RDS quit while RDP was still connected to it.
+    bool m_versionExists;                               ///< Is there a version number in the settings file
 };
 
 #endif // _MAIN_WINDOW_H_

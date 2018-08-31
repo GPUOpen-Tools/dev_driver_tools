@@ -1,5 +1,5 @@
 //=============================================================================
-/// Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+/// Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
 /// \author AMD Developer Tools Team
 /// \file
 /// \brief  Implementation for RDP settings.
@@ -11,6 +11,7 @@
 #include <QDir>
 #include <QFile>
 #include <QTextStream>
+#include <QString>
 
 #include "RDPSettings.h"
 #include "RDPSettingsReader.h"
@@ -205,10 +206,11 @@ void RDPSettings::CloseAppSettingsFile(const QString& settingFilename)
 //-----------------------------------------------------------------------------
 /// Add new connection information to be serialized in the recent connections list.
 /// \param connectionInfo A structure containing all the info required to connect to RDS.
+/// \param loading Are the settings being loaded? If so, no need to resave
 /// \return true if connection added successfully, false otherwise (connection
 /// already listed)
 //-----------------------------------------------------------------------------
-bool RDPSettings::AddRecentConnection(const RDSConnectionInfo& connectionInfo)
+bool RDPSettings::AddRecentConnection(const RDSConnectionInfo& connectionInfo, bool loading)
 {
     for (auto& item : m_recentConnections)
     {
@@ -219,7 +221,10 @@ bool RDPSettings::AddRecentConnection(const RDSConnectionInfo& connectionInfo)
     }
 
     m_recentConnections.push_back(connectionInfo);
-    SaveSettings();
+    if (loading == false)
+    {
+        SaveSettings();
+    }
     return true;
 }
 
@@ -339,6 +344,50 @@ bool RDPSettings::isApplyDriverSettingsState(int index)
 bool RDPSettings::CheckBlacklistMatch(const QString& processName)
 {
     return m_processBlacklist.contains(processName);
+}
+
+//-----------------------------------------------------------------------------
+/// Does the version number exist in the settings file.
+/// If the file doesn't exist, the user may just have deleted it so don't nag
+/// them in this case.
+/// \return true if version number exists, false if not
+//-----------------------------------------------------------------------------
+bool RDPSettings::VersionExists()
+{
+    QString settingsFilepath = ToolUtil::GetDriverToolsXmlFileLocation();
+    settingsFilepath.append(QDir::separator());
+    settingsFilepath.append(gs_PRODUCT_SETTINGS_FILENAME);
+
+    QFile file(settingsFilepath);
+    bool readSettingsFile = file.open(QFile::ReadOnly | QFile::Text);
+
+    // settings file exists
+    if (readSettingsFile == true)
+    {
+        RDPSettingsReader xmlReader(this);
+
+        readSettingsFile = xmlReader.Read(&file);
+
+        // Make sure the XML parse worked
+        Q_ASSERT(readSettingsFile == true);
+        if (!readSettingsFile)
+        {
+            RDPUtil::DbgMsg("[RDP] Detected malformed settings file.");
+        }
+        else
+        {
+            RDPSettingsMap::const_iterator iter = m_activeSettings.find(RDP_SETTING_VERSION_STRING);
+            if (iter == m_activeSettings.end())
+            {
+                return false;
+            }
+            return true;
+        }
+    }
+
+    // can't find settings file so a new one will be created with a default version number, so version
+    // number will exist
+    return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -504,7 +553,11 @@ void RDPSettings::InitDefaultSettings()
 
     m_defaultSettings[RDP_SETTING_RGP_PATH_STRING] = { "PathToRGP", defaultRGPPath };
 
+    QString defaultVersion = ToolUtil::GetFormattedVersionString();
+    m_defaultSettings[RDP_SETTING_VERSION_STRING] = { "Version", defaultVersion };
+
     m_userClockMode = DevDriver::DriverControlProtocol::DeviceClockMode::Default;
+
 }
 
 //-----------------------------------------------------------------------------
@@ -535,6 +588,32 @@ bool RDPSettings::GetBoolValue(RDPSettingID settingId) const
 int RDPSettings::GetIntValue(RDPSettingID settingId) const
 {
     return m_activeSettings[settingId].value.toInt();
+}
+
+//-----------------------------------------------------------------------------
+/// Get a setting as a 64 bit unsigned integer value
+/// \param settingId The identifier for this setting
+/// \return The integer value for the setting specified
+//-----------------------------------------------------------------------------
+uint64_t RDPSettings::GetUnsignedInt64Value(RDPSettingID settingId) const
+{
+    return m_activeSettings[settingId].value.toULongLong();
+}
+
+//-----------------------------------------------------------------------------
+/// Get a setting as a string list object.
+/// \param settingId The identifier for this setting.
+/// \param stringListOut The string list for the setting specified.
+//-----------------------------------------------------------------------------
+void RDPSettings::GetStringListValue(RDPSettingID settingId, QStringList& stringListOut) const
+{
+    QString csvString(m_activeSettings[settingId].value);
+
+    stringListOut.clear();
+    if (csvString.isEmpty() == false)
+    {
+        stringListOut = csvString.split(",");
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -594,6 +673,16 @@ void RDPSettings::SetIntValue(RDPSettingID settingId, const int value)
 }
 
 //-----------------------------------------------------------------------------
+/// Set a setting as an 64 bit unsigned integer value
+/// \param settingId The identifier for this setting
+/// \param value The new value of the setting
+//-----------------------------------------------------------------------------
+void RDPSettings::SetUnsignedInt64Value(RDPSettingID settingId, const uint64_t value)
+{
+    AddPotentialSetting(m_defaultSettings[settingId].name, QString::number(value));
+}
+
+//-----------------------------------------------------------------------------
 /// Set a setting as a QColor value
 /// \param settingId The identifier for this setting
 /// \param value The new value of the setting
@@ -602,6 +691,18 @@ void RDPSettings::SetColorValue(RDPSettingID settingId, const QColor& value)
 {
     QString str;
     QTextStream(&str) << value.red() << ", " << value.green() << ", " << value.blue() << ", " << value.alpha();
+    AddPotentialSetting(m_defaultSettings[settingId].name, str);
+}
+
+//-----------------------------------------------------------------------------
+/// Set a setting as a list of comma separated string values
+/// \param settingId The identifier for this setting
+/// \param value The new value of the setting
+//-----------------------------------------------------------------------------
+void RDPSettings::SetStringListValue(RDPSettingID settingId, const QStringList& value)
+{
+    QString str;
+    QTextStream(&str) << value.join(',');
     AddPotentialSetting(m_defaultSettings[settingId].name, str);
 }
 
@@ -744,6 +845,15 @@ QString RDPSettings::GetDefaultTraceOutputPath() const
 }
 
 //-----------------------------------------------------------------------------
+/// Generate the path to where pipeline binaries will be output to by default.
+/// \returns The default pipeline output directory.
+//-----------------------------------------------------------------------------
+QString RDPSettings::GetDefaultPipelineBinsOutputPath() const
+{
+    return "";
+}
+
+//-----------------------------------------------------------------------------
 /// Get the last saved RGP Trace output filepath.
 /// \return A string containing the last target executable directory the user browsed to.
 //-----------------------------------------------------------------------------
@@ -759,6 +869,105 @@ QString RDPSettings::GetLastTargetExecutableDirectory() const
 QString RDPSettings::GetPathToRGP() const
 {
     return QDir::toNativeSeparators(GetStringValue(RDP_SETTING_RGP_PATH_STRING));
+}
+
+//-----------------------------------------------------------------------------
+/// Get the path to pipeline binaries output dir
+/// \return A path to pipeline binaries output dir
+//-----------------------------------------------------------------------------
+QString RDPSettings::GetPipelineBinariesOutputPath() const
+{
+    return QDir::toNativeSeparators(GetStringValue(RDP_SETTING_PIPELINE_BINARIES_OUTPUT_PATH_STRING));
+}
+
+//-----------------------------------------------------------------------------
+/// Get the path to pipeline binaries editor
+/// \return A path to pipeline binaries editor
+//-----------------------------------------------------------------------------
+QString RDPSettings::GetPipelineBinariesEditorPath() const
+{
+    return QDir::toNativeSeparators(GetStringValue(RDP_SETTING_PIPELINE_BINARIES_EDITOR_PATH_STRING));
+}
+
+//-----------------------------------------------------------------------------
+/// Get the path to pipeline binaries last browse location
+/// \return A path to pipeline binaries last browse location
+//-----------------------------------------------------------------------------
+QString RDPSettings::GetPipelineBinariesBrowsePath() const
+{
+    return QDir::toNativeSeparators(GetStringValue(RDP_SETTING_PIPELINE_BINARIES_BROWSE_PATH_STRING));
+}
+
+//-----------------------------------------------------------------------------
+/// Determine if editor should launch after disassembly
+/// \return True if editor should launch after disassembly
+//-----------------------------------------------------------------------------
+bool RDPSettings::GetPipelineBinariesEditorEnableLaunch() const
+{
+    return GetBoolValue(RDP_SETTING_PIPELINE_BINARIES_EDITOR_ENABLE_LAUNCH);
+}
+
+//-----------------------------------------------------------------------------
+/// Determine if reassembly should be automatic
+/// \return True if reassembly should be automatic
+//-----------------------------------------------------------------------------
+bool RDPSettings::GetPipelineBinariesEnableAutoReassembly() const
+{
+    return GetBoolValue(RDP_SETTING_PIPELINE_BINARIES_ENABLE_AUTO_REASSEMBLY);
+}
+
+//-----------------------------------------------------------------------------
+/// Determine if pipeline binaries output window should enable RDP output
+/// \return True if pipeline binaries output window should enable RDP output
+//-----------------------------------------------------------------------------
+bool RDPSettings::GetPipelineBinariesOWEnableRDP() const
+{
+    return GetBoolValue(RDP_SETTING_PIPELINE_BINARIES_OW_ENABLE_RDP);
+}
+
+//-----------------------------------------------------------------------------
+/// Determine if pipeline binaries output window should enable disassembly output
+/// \return True if pipeline binaries output window should enable disassembly output
+//-----------------------------------------------------------------------------
+bool RDPSettings::GetPipelineBinariesOWEnableDisassembly() const
+{
+    return GetBoolValue(RDP_SETTING_PIPELINE_BINARIES_OW_ENABLE_DISASSEMBLY);
+}
+
+//-----------------------------------------------------------------------------
+/// Determine if pipeline binaries output window should enable reassembly output
+/// \return True if pipeline binaries output window should enable reassembly output
+//-----------------------------------------------------------------------------
+bool RDPSettings::GetPipelineBinariesOWEnableReassembly() const
+{
+    return GetBoolValue(RDP_SETTING_PIPELINE_BINARIES_OW_ENABLE_REASSEMBLY);
+}
+
+//-----------------------------------------------------------------------------
+/// Determine if pipeline binaries output window should enable timestamp
+/// \return True if pipeline binaries output window should enable timestamp
+//-----------------------------------------------------------------------------
+bool RDPSettings::GetPipelineBinariesOWEnableTimestamps() const
+{
+    return GetBoolValue(RDP_SETTING_PIPELINE_BINARIES_OW_ENABLE_TIMESTAMPS);
+}
+
+//-----------------------------------------------------------------------------
+/// Determine if pipeline binaries output window should enable word wrap
+/// \return True if pipeline binaries output window should enable word wrap
+//-----------------------------------------------------------------------------
+bool RDPSettings::GetPipelineBinariesOWEnableWordWrap() const
+{
+    return GetBoolValue(RDP_SETTING_PIPELINE_BINARIES_OW_ENABLE_WORD_WRAP);
+}
+
+//-----------------------------------------------------------------------------
+/// Get the RDP version number string
+/// \return The version string
+//-----------------------------------------------------------------------------
+QString RDPSettings::GetVersionString() const
+{
+    return GetStringValue(RDP_SETTING_VERSION_STRING);
 }
 
 //-----------------------------------------------------------------------------
@@ -880,12 +1089,134 @@ void RDPSettings::SetPathToRGP(const QString& rgpPathString)
 }
 
 //-----------------------------------------------------------------------------
+/// Sets the path to pipeline binaries output dir
+/// \param path path to pipeline binaries output dir
+//-----------------------------------------------------------------------------
+void RDPSettings::SetPipelineBinariesOutputPath(const QString& path)
+{
+    AddPotentialSetting(m_defaultSettings[RDP_SETTING_PIPELINE_BINARIES_OUTPUT_PATH_STRING].name, path);
+    SaveSettings();
+}
+
+//-----------------------------------------------------------------------------
+/// Sets the path to pipeline binaries editor
+/// \param path path to pipeline binaries output
+//-----------------------------------------------------------------------------
+void RDPSettings::SetPipelineBinariesEditorPath(const QString& path)
+{
+    AddPotentialSetting(m_defaultSettings[RDP_SETTING_PIPELINE_BINARIES_EDITOR_PATH_STRING].name, path);
+    SaveSettings();
+}
+
+//-----------------------------------------------------------------------------
+/// Sets the path to pipeline binaries last browse path
+/// \param path path to pipeline binaries last browse path
+//-----------------------------------------------------------------------------
+void RDPSettings::SetPipelineBinariesBrowsePath(const QString& path)
+{
+    AddPotentialSetting(m_defaultSettings[RDP_SETTING_PIPELINE_BINARIES_BROWSE_PATH_STRING].name, path);
+    SaveSettings();
+}
+
+//-----------------------------------------------------------------------------
+/// Sets the "detailed instruction data" flag used when collecting an RGP trace.
+/// \param detailedData A true/false indicating the user's profiling detail level.
+//-----------------------------------------------------------------------------
+void RDPSettings::SetPipelineBinariesEditorEnableLaunch(bool launchEditor)
+{
+    const QString valString = launchEditor ? gs_TRUE_TEXT : gs_FALSE_TEXT;
+    AddPotentialSetting(m_defaultSettings[RDP_SETTING_PIPELINE_BINARIES_EDITOR_ENABLE_LAUNCH].name, valString);
+    SaveSettings();
+}
+
+//-----------------------------------------------------------------------------
+/// Save the pipeline binaries automatic reassembly setting
+/// \param autoReassembly the pipeline binaries automatic reassembly setting
+//-----------------------------------------------------------------------------
+void RDPSettings::SetPipelineBinariesEnableAutoReassembly(bool autoReassembly)
+{
+    const QString valString = autoReassembly ? gs_TRUE_TEXT : gs_FALSE_TEXT;
+    AddPotentialSetting(m_defaultSettings[RDP_SETTING_PIPELINE_BINARIES_ENABLE_AUTO_REASSEMBLY].name, valString);
+    SaveSettings();
+}
+
+//-----------------------------------------------------------------------------
+/// Save the pipeline binaries output window RDP flag
+/// \param enable the pipeline binaries output window RDP flag
+//-----------------------------------------------------------------------------
+void RDPSettings::SetPipelineBinariesOWEnableRDP(bool enable)
+{
+    const QString valString = enable ? gs_TRUE_TEXT : gs_FALSE_TEXT;
+    AddPotentialSetting(m_defaultSettings[RDP_SETTING_PIPELINE_BINARIES_OW_ENABLE_RDP].name, valString);
+    SaveSettings();
+}
+
+//-----------------------------------------------------------------------------
+/// Save the pipeline binaries output window RDP flag
+/// \param enable the pipeline binaries output window RDP flag
+//-----------------------------------------------------------------------------
+void RDPSettings::SetPipelineBinariesOWEnableDisassembly(bool enable)
+{
+    const QString valString = enable ? gs_TRUE_TEXT : gs_FALSE_TEXT;
+    AddPotentialSetting(m_defaultSettings[RDP_SETTING_PIPELINE_BINARIES_OW_ENABLE_DISASSEMBLY].name, valString);
+    SaveSettings();
+}
+
+//-----------------------------------------------------------------------------
+/// Save the pipeline binaries output window RDP flag
+/// \param enable the pipeline binaries output window RDP flag
+//-----------------------------------------------------------------------------
+void RDPSettings::SetPipelineBinariesOWEnableReassembly(bool enable)
+{
+    const QString valString = enable ? gs_TRUE_TEXT : gs_FALSE_TEXT;
+    AddPotentialSetting(m_defaultSettings[RDP_SETTING_PIPELINE_BINARIES_OW_ENABLE_REASSEMBLY].name, valString);
+    SaveSettings();
+}
+
+//-----------------------------------------------------------------------------
+/// Save the pipeline binaries output window RDP flag
+/// \param enable the pipeline binaries output window RDP flag
+//-----------------------------------------------------------------------------
+void RDPSettings::SetPipelineBinariesOWEnableTimestamps(bool enable)
+{
+    const QString valString = enable ? gs_TRUE_TEXT : gs_FALSE_TEXT;
+    AddPotentialSetting(m_defaultSettings[RDP_SETTING_PIPELINE_BINARIES_OW_ENABLE_TIMESTAMPS].name, valString);
+    SaveSettings();
+}
+
+//-----------------------------------------------------------------------------
+/// Save the pipeline binaries output window RDP flag
+/// \param enable the pipeline binaries output window RDP flag
+//-----------------------------------------------------------------------------
+void RDPSettings::SetPipelineBinariesOWEnableWordWrap(bool enable)
+{
+    const QString valString = enable ? gs_TRUE_TEXT : gs_FALSE_TEXT;
+    AddPotentialSetting(m_defaultSettings[RDP_SETTING_PIPELINE_BINARIES_OW_ENABLE_WORD_WRAP].name, valString);
+    SaveSettings();
+}
+
+//-----------------------------------------------------------------------------
+/// Set the version string
+/// \param versionString The new version string
+//-----------------------------------------------------------------------------
+void RDPSettings::SetVersionString(const QString& versionString)
+{
+    AddPotentialSetting(m_defaultSettings[RDP_SETTING_VERSION_STRING].name, versionString);
+    SaveSettings();
+}
+
+//-----------------------------------------------------------------------------
 /// Sets the clock mode to be used during normal operation while RDP is connected.
 /// Value is chosen by the user within the clocks interface, and is overridden while collecting a trace.
 /// \param clockMode The clock mode to set for the GPU.
+/// \param loading Are the settings being loaded? If so, no need to resave
 //-----------------------------------------------------------------------------
-void RDPSettings::SetUserClockMode(DevDriver::DriverControlProtocol::DeviceClockMode clockMode)
+void RDPSettings::SetUserClockMode(DevDriver::DriverControlProtocol::DeviceClockMode clockMode, bool loading)
 {
     m_userClockMode = clockMode;
-    SaveSettings();
+    if (loading == false)
+    {
+        SaveSettings();
+    }
 }
+

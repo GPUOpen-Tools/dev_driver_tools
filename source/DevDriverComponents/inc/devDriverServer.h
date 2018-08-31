@@ -90,6 +90,9 @@ namespace DevDriver
         SettingsProtocol::SettingsServer* GetSettingsServer();
         DriverControlProtocol::DriverControlServer* GetDriverControlServer();
         RGPProtocol::RGPServer* GetRGPServer();
+        SettingsURIService::SettingsService* GetSettingsService();
+
+        bool ShouldShowOverlay();
 
 #if !DD_VERSION_SUPPORTS(GPUOPEN_CREATE_INFO_CLEANUP_VERSION)
         static bool IsConnectionAvailable(const TransportType type, uint32 timeout = kQueryStatusTimeoutInMs);
@@ -106,6 +109,8 @@ namespace DevDriver
         IMsgChannel*     m_pMsgChannel;
         AllocCb          m_allocCb;
         ServerCreateInfo m_createInfo;
+
+        SettingsURIService::SettingsService* m_pSettingsService;
 
         template <Protocol protocol, class ...Args>
         inline Result RegisterProtocol(Args... args);

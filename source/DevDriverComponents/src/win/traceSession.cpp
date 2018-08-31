@@ -32,6 +32,7 @@
 #include "traceSession.h"
 #include <tchar.h>
 #include <string>
+#include <ObjBase.h>
 
 #include "ddPlatform.h"
 

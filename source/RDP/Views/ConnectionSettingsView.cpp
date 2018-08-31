@@ -17,6 +17,7 @@
 #include "RecentConnectionsView.h"
 #include "NewConnectionView.h"
 #include "SetupTargetApplicationView.h"
+#include "ConnectionLogView.h"
 #include "ui_ConnectionSettingsView.h"
 #include "../Models/ConnectionSettingsModel.h"
 #include "../Models/DeveloperPanelModel.h"
@@ -30,9 +31,11 @@ const static int s_CONNECTION_ATTEMPT_UPDATE_INTERVAL_MSECS = 1000;
 //-----------------------------------------------------------------------------
 /// Constructor for the ConnectionSettingsView. Initialize the interface defaults.
 /// \param pPanelModel The main Panel model used to maintain a connection to RDS.
+/// \param pConnectionLogView The connection log view used in this pane. This
+/// pane will take ownership of the connection log view
 /// \param pParent The parent widget for the Connection Settings View.
 //-----------------------------------------------------------------------------
-ConnectionSettingsView::ConnectionSettingsView(DeveloperPanelModel* pPanelModel, QWidget* pParent) :
+ConnectionSettingsView::ConnectionSettingsView(DeveloperPanelModel* pPanelModel, ConnectionLogView* pConnectionLogView, QWidget* pParent) :
     QWidget(pParent),
     m_disableRdsDisconnectNotification(false),
     ui(new Ui::ConnectionSettingsView),
@@ -53,17 +56,22 @@ ConnectionSettingsView::ConnectionSettingsView(DeveloperPanelModel* pPanelModel,
     m_pSetupTargetApplicationView = new SetupTargetApplicationView(pPanelModel, this);
     m_pActiveApplicationsTableView = new ActiveApplicationsTableView(pPanelModel, m_pSetupTargetApplicationView, this);
 
+    // give ownership of connection log to the connection settings view
+    pConnectionLogView->setParent(this);
+
     // Insert the required views into the pane and hide others that aren't required yet
     ui->connectionStatusViewLayout->addWidget(m_pConnectionStatusView);
 
-    m_page1Views.push_back(m_pRecentConnectionsView);
-    m_page1Views.push_back(m_pNewConnectionView);
-    m_page2Views.push_back(m_pSetupTargetApplicationView);
-    m_page2Views.push_back(m_pActiveApplicationsTableView);
+    m_preConnectionViews.push_back(m_pRecentConnectionsView);
+    m_preConnectionViews.push_back(m_pNewConnectionView);
+    m_connectedViews.push_back(m_pSetupTargetApplicationView);
+    m_connectedViews.push_back(m_pActiveApplicationsTableView);
+    m_connectionLogViews.push_back(pConnectionLogView);
     m_pSetupTargetApplicationView->hide();
     m_pActiveApplicationsTableView->hide();
+    pConnectionLogView->hide();
 
-    SetupPage(m_page1Views);
+    SetupPage(m_preConnectionViews);
 
     // Handle the "Connect" button in the Recent Connections View being clicked.
     connect(m_pRecentConnectionsView, &RecentConnectionsView::ConnectionRequested, this, &ConnectionSettingsView::OnRecentConnectionDoubleClicked);
@@ -81,6 +89,10 @@ ConnectionSettingsView::ConnectionSettingsView(DeveloperPanelModel* pPanelModel,
     connect(static_cast<QLineEdit*>(m_pNewConnectionView->GetIPAddressLineEdit()), &QLineEdit::returnPressed, this, &ConnectionSettingsView::OnConnectClicked);
     connect(static_cast<QLineEdit*>(m_pNewConnectionView->GetPortNumberLineEdit()), &QLineEdit::returnPressed, this, &ConnectionSettingsView::OnConnectClicked);
     connect(m_pConnectionStatusView, &ConnectionStatusView::DisconnectPressed, this, &ConnectionSettingsView::OnDisconnectClicked);
+
+    // Connection log show/hide signals/slots
+    connect(static_cast<QPushButton*>(m_pConnectionStatusView->GetShowConnectionButton()), &QPushButton::clicked, this, &ConnectionSettingsView::OnShowLog);
+    connect(static_cast<QPushButton*>(m_pConnectionStatusView->GetHideConnectionButton()), &QPushButton::clicked, this, &ConnectionSettingsView::OnHideLog);
 
     // Connected/disconnected state signals and slots
     connect(m_pConnectionSettingsModel, &ConnectionSettingsModel::Connected, this, &ConnectionSettingsView::OnRDSConnected);
@@ -229,7 +241,7 @@ void ConnectionSettingsView::AttemptConnection()
 
     // Switch to connection attempt status
     m_pConnectionStatusView->SetHostConnectionString(connectionEndpointString);
-    m_pConnectionStatusView->SetConnectionStatus(ATTEMPT);
+    m_pConnectionStatusView->SetConnectionStatus(CONNECTION_STATUS_ATTEMPT);
 
     // Start connection attempt
     m_pConnectionSettingsModel->InitializeConnection();
@@ -257,7 +269,7 @@ void ConnectionSettingsView::OnConnectionAttemptUpdate()
     {
         // Connection attempt finished with timeout/failure
         m_pConnectionSettingsModel->StopConnectionAttempt();
-        m_pConnectionStatusView->SetConnectionStatus(DISCONNECTED);
+        m_pConnectionStatusView->SetConnectionStatus(CONNECTION_STATUS_DISCONNECTED);
         RDPUtil::ShowNotification(gs_CONNECTION_ATTEMPT_FAILED_TITLE, gs_CONNECTION_ATTEMPT_FAILED_TEXT, NotificationWidget::Button::Ok);
         m_pRecentConnectionsView->SelectRow(0);
 
@@ -273,7 +285,7 @@ void ConnectionSettingsView::OnConnectionAttemptStopPressed()
 {
     // Connection attempt finished with stop request
     m_pConnectionSettingsModel->StopConnectionAttempt();
-    m_pConnectionStatusView->SetConnectionStatus(DISCONNECTED);
+    m_pConnectionStatusView->SetConnectionStatus(CONNECTION_STATUS_DISCONNECTED);
 
     ConnectionAttemptDone();
 }
@@ -321,9 +333,9 @@ void ConnectionSettingsView::OnRDSConnected()
    const QString& connectionEndpointString = m_pConnectionSettingsModel->GetConnectionEndpointString();
 
     // Disable the first screen and progress to the next.
-    SetupPage(m_page2Views);
+    SetupPage(m_connectedViews);
     m_pConnectionStatusView->SetHostConnectionString(connectionEndpointString);
-    m_pConnectionStatusView->SetConnectionStatus(CONNECTED);
+    m_pConnectionStatusView->SetConnectionStatus(CONNECTION_STATUS_CONNECTED);
 
     emit ConnectionStatusUpdated(true, connectionEndpointString);
 }
@@ -335,8 +347,8 @@ void ConnectionSettingsView::OnRDSConnected()
 void ConnectionSettingsView::OnRDSDisconnected()
 {
     // Go back to the first screen
-    SetupPage(m_page1Views);
-    m_pConnectionStatusView->SetConnectionStatus(DISCONNECTED);
+    SetupPage(m_preConnectionViews);
+    m_pConnectionStatusView->SetConnectionStatus(CONNECTION_STATUS_DISCONNECTED);
 
     // RDP disconnected from RDS. There's no connected hostname anymore.
     emit ConnectionStatusUpdated(false, "");
@@ -349,6 +361,31 @@ void ConnectionSettingsView::OnRDSDisconnected()
 
         // Show the notification box.
         RDPUtil::ShowNotification(gs_CONNECTION_LOST_TITLE, gs_CONNECTION_LOST_TEXT, NotificationWidget::Button::Ok);
+    }
+}
+
+//-----------------------------------------------------------------------------
+/// Show the connection log pane
+//-----------------------------------------------------------------------------
+void ConnectionSettingsView::OnShowLog()
+{
+    SetupPage(m_connectionLogViews);
+    m_pConnectionStatusView->OnShowLog();
+}
+
+//-----------------------------------------------------------------------------
+/// Hide the connection log pane
+//-----------------------------------------------------------------------------
+void ConnectionSettingsView::OnHideLog()
+{
+    m_pConnectionStatusView->OnHideLog();
+    if (m_pConnectionStatusView->GetConnectionStatus() == CONNECTION_STATUS_CONNECTED)
+    {
+        SetupPage(m_connectedViews);
+    }
+    else
+    {
+        SetupPage(m_preConnectionViews);
     }
 }
 

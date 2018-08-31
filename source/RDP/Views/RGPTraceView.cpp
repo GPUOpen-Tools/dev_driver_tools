@@ -136,7 +136,6 @@ RGPTraceView::~RGPTraceView()
 {
     SystemKeyboardHook::GetInstance()->Disconnect();
     SAFE_DELETE(m_pRGPTraceModel);
-
     delete ui;
 }
 
@@ -658,7 +657,8 @@ void RGPTraceView::OnProfilingTargetUpdated(const ProcessInfoModel& processInfoM
         // Parse the process description to extract the graphics API.
         processAPIString = processInfoModel.GetAPI();
 
-        processClientIdString = QString::number(processInfoModel.GetMostRecentClientId());
+        DevDriver::ClientId clientId = processInfoModel.GetMostRecentClientId();
+        processClientIdString = QString::number(clientId);
 
         // Flip to the profiling tab.
         RDPUtil::OpenProfilingTab();
@@ -762,7 +762,11 @@ void RGPTraceView::OnShowRecentTracesContextMenu(const QPoint& pos)
                     const QString& existingFilenameOnly = selectedTraceFileInfo.fileName();
 
                     // Open a "Rename this trace file" popup where the user will choose a new filename.
-                    QString newFilename = QInputDialog::getText(this, gs_RECENT_TRACE_CONTEXT_MENU_RENAME_TITLE, gs_RECENT_TRACE_CONTEXT_MENU_RENAME_MESSAGE, QLineEdit::Normal, existingFilenameOnly);
+                    QInputDialog inputDialog;
+                    bool ok = false;
+                    Qt::WindowFlags flags = inputDialog.windowFlags();
+                    flags &= ~Qt::WindowContextHelpButtonHint;
+                    QString newFilename = inputDialog.getText(this, gs_RECENT_TRACE_CONTEXT_MENU_RENAME_TITLE, gs_RECENT_TRACE_CONTEXT_MENU_RENAME_MESSAGE, QLineEdit::Normal, existingFilenameOnly, &ok, flags);
 
                     // Trim all leading and trailing whitespace from the file.
                     newFilename = newFilename.trimmed();

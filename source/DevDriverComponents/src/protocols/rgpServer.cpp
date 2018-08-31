@@ -29,7 +29,7 @@
 #include "util/queue.h"
 
 #define RGP_SERVER_MIN_MAJOR_VERSION 2
-#define RGP_SERVER_MAX_MAJOR_VERSION 6
+#define RGP_SERVER_MAX_MAJOR_VERSION 7
 
 namespace DevDriver
 {
@@ -161,7 +161,7 @@ namespace DevDriver
                                             m_traceParameters.numPreparationFrames = traceParameters.numPreparationFrames;
                                             m_traceParameters.flags.u32All = traceParameters.flags.u32All;
                                         }
-                                        else if (pSession->GetVersion() == RGP_TRIGGER_MARKERS_VERSION)
+                                        else if (pSession->GetVersion() >= RGP_TRIGGER_MARKERS_VERSION)
                                         {
                                             const TraceParametersV4& traceParameters = pSessionData->payload.executeTraceRequestV4.parameters;
                                             m_traceParameters.gpuMemoryLimitInMb = traceParameters.gpuMemoryLimitInMb;
@@ -278,6 +278,7 @@ namespace DevDriver
                     break;
                 }
 
+                case TraceStatus::Pending:
                 case TraceStatus::Running:
                 case TraceStatus::Finishing:
                 {
@@ -292,7 +293,9 @@ namespace DevDriver
                         DD_ASSERT(m_pCurrentSessionData->state == SessionState::TransferTraceData);
 
                         // Look for an abort request if necessary.
-                        if ((pSession->GetVersion() >= RGP_TRACE_PROGRESS_VERSION) && (!pSessionData->abortRequestedByClient))
+                        // Aborts are only supporting in the pending state if we're at an appropriate protocol version.
+                        if (((pSession->GetVersion() >= RGP_TRACE_PROGRESS_VERSION) & (!pSessionData->abortRequestedByClient)) &
+                            ((m_traceStatus != TraceStatus::Pending) | (pSession->GetVersion() >= RGP_PENDING_ABORT_VERSION)))
                         {
                             uint32 bytesReceived = 0;
                             Result result = pSession->Receive(sizeof(pSessionData->payload), &pSessionData->payload, &bytesReceived, kNoWait);
@@ -326,9 +329,12 @@ namespace DevDriver
                                 ClearCurrentSession();
                             }
                         }
-                        else
+                        else if ((m_traceStatus == TraceStatus::Running) | (m_traceStatus == TraceStatus::Finishing))
                         {
-                            // When trace progress is supported, we only send data if we're in the finishing state.
+                            // We should only consider sending trace data if we're in the running or finishing states.
+
+                            // When trace progress is supported, we only send data once the trace is completed.
+                            // We should always in the finishing state in that scenario.
                             const bool sendTraceData = (pSession->GetVersion() >= RGP_TRACE_PROGRESS_VERSION) ? (m_traceStatus == TraceStatus::Finishing)
                                                                                                               : true;
                             if (sendTraceData)
@@ -550,7 +556,6 @@ namespace DevDriver
 
             }
 
-            DD_ASSERT(result == Result::Success);
             return result;
         }
 
@@ -619,7 +624,6 @@ namespace DevDriver
                     result = Result::Success;
             }
 
-            DD_ASSERT(result == Result::Success);
             return result;
         }
 

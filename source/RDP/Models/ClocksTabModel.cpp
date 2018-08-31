@@ -5,6 +5,8 @@
 /// \brief The model used to manage the values for each device clock mode.
 //=============================================================================
 
+#include <cmath>                // for round
+
 #include "ClocksTabModel.h"
 #include "DeviceClockModeModel.h"
 #include "../Settings/RDPSettings.h"

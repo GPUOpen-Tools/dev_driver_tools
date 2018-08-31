@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>614</width>
-    <height>274</height>
+    <height>400</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -174,7 +174,7 @@
       </layout>
      </item>
      <item>
-      <widget class="AppListTreeView" name="TargetApplicationList">
+      <widget class="AppListSetupTreeView" name="TargetApplicationList">
        <property name="sizePolicy">
         <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
          <horstretch>0</horstretch>
@@ -250,9 +250,9 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>AppListTreeView</class>
+   <class>AppListSetupTreeView</class>
    <extends>QTreeView</extends>
-   <header>../../source/RDP/Views/AppListTreeView.h</header>
+   <header>../../source/RDP/Views/AppListSetupTreeView.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

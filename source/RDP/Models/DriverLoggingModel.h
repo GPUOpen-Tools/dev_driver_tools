@@ -36,10 +36,10 @@ public:
 private:
     void ResetLogfileModel();
 
-    QThread* m_pDriverLogWorkerThread;              ///< An background worker thread used to read incoming log messages.
-    DriverLogBackgroundWorker* m_pLogReaderWorker;  ///< The worker responsible for reading driver log lines.
-    DriverLogfileModel* m_pLogfileModel;            ///< The model where driver log data is inserted.
-    bool m_logWorkerInitialized;                   ///< A bool indicating if the log reader has been initialized.
-};
+    QThread* m_pDriverLogWorkerThread;                               ///< An background worker thread used to read incoming log messages.
+    DriverLogBackgroundWorker* m_pLogReaderWorker;                   ///< The worker responsible for reading driver log lines.
+    DriverLogfileModel* m_pLogfileModel;                             ///< The model where driver log data is inserted.
+    bool m_logWorkerInitialized;                                     ///< A bool indicating if the log reader has been initialized.
 
+};
 #endif // _DRIVER_LOGGING_MODEL_H_

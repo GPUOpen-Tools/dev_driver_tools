@@ -118,7 +118,7 @@
            </property>
            <property name="icon">
             <iconset resource="../Service.qrc">
-             <normaloff>:/images/third_party/ionicons/loop.svg</normaloff>:/images/third_party/ionicons/loop.svg</iconset>
+             <normaloff>:/assets/third_party/ionicons/loop.svg</normaloff>:/assets/third_party/ionicons/loop.svg</iconset>
            </property>
           </widget>
          </item>
@@ -334,7 +334,7 @@
             <string/>
            </property>
            <property name="pixmap">
-            <pixmap resource="../Service.qrc">:/images/RDS_Icon.png</pixmap>
+            <pixmap resource="../Service.qrc">:/assets/RDS_Icon.png</pixmap>
            </property>
            <property name="scaledContents">
             <bool>true</bool>

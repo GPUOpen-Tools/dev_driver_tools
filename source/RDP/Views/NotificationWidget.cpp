@@ -6,6 +6,8 @@
 ///         the user on top of the RDP window contents.
 //=============================================================================
 
+#include <cmath>                // for log2
+
 #include "NotificationWidget.h"
 #include "ui_NotificationWidget.h"
 #include "../Util/RDPUtil.h"

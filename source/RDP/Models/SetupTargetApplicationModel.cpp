@@ -1,5 +1,5 @@
 //=============================================================================
-/// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+/// Copyright (c) 2017 - 2018 Advanced Micro Devices, Inc. All rights reserved.
 /// \author AMD Developer Tools Team
 /// \file
 /// \brief  Implementation of the Setup Target Application model.
@@ -7,14 +7,16 @@
 
 #include <QFileInfo>
 #include <QStandardItemModel>
+#include <QSortFilterProxyModel>
+#include <QStringListModel>
 #include <QApplication>
 #include <QStandardItem>
+#include <QSharedPointer>
+
 #include "SetupTargetApplicationModel.h"
 #include "../Settings/RDPSettings.h"
 #include "../Util/RDPUtil.h"
 #include "../RDPDefinitions.h"
-
-#include <QSortFilterProxyModel>
 
 //-----------------------------------------------------------------------------
 /// Constructor
@@ -43,6 +45,7 @@ SetupTargetApplicationModel::SetupTargetApplicationModel()
     m_pApplicationsTableModel->setHorizontalHeaderItem(TARGET_APPLICATION_TABLE_COLUMN_ENABLE_PROFILING, pCellItem);
 
     m_traceInProgress = false;
+
 }
 
 //-----------------------------------------------------------------------------
@@ -59,7 +62,7 @@ SetupTargetApplicationModel::~SetupTargetApplicationModel()
 /// \return The SetupTargetApplication proxy model, with the table model as
 /// its source
 //-----------------------------------------------------------------------------
-QAbstractItemModel* SetupTargetApplicationModel::GetTableModel()
+QAbstractItemModel* SetupTargetApplicationModel::GetTableModel() const
 {
     return m_pProxyModel;
 }
@@ -116,13 +119,13 @@ bool SetupTargetApplicationModel::AddApplication(const QString& application)
     appInfo.apiName         = gs_DASH_TEXT;
     appInfo.allowProfiling  = false;
     appInfo.applySettings   = true;
-
     // Add the target executable and save the settings file immediately.
     RDPSettings& rdpSettings = RDPSettings::Get();
     rdpSettings.AddTargetApplication(appInfo);
     rdpSettings.SaveSettings();
 
     Update();
+    emit ApplicationAdded(application);
 
     // Simulate a click on the "Enable Profiling" column on the latest application added.
     int rowCount = m_pApplicationsTableModel->rowCount();
@@ -144,13 +147,15 @@ void SetupTargetApplicationModel::RemoveApplication(int proxyRowIndex)
     QModelIndex proxyModelIndex = m_pProxyModel->index(proxyRowIndex, 0);
     QModelIndex sourceModelIndex = m_pProxyModel->mapToSource(proxyModelIndex);
     int rowIndex = sourceModelIndex.row();
-
+    QModelIndex appNameIndex = m_pApplicationsTableModel->index(rowIndex, TARGET_APPLICATION_TABLE_COLUMN_EXECUTABLE_NAME);
+    QString application = appNameIndex.data().toString();
     bool rowRemoved = m_pApplicationsTableModel->removeRow(rowIndex);
     if (rowRemoved)
     {
         RDPSettings& rdpSettings = RDPSettings::Get();
         rdpSettings.RemoveTargetApplication(rowIndex);
         RDPSettings::Get().SaveSettings();
+        emit ApplicationRemoved(application);
     }
     else
     {
@@ -167,12 +172,11 @@ void SetupTargetApplicationModel::Update()
     int rowCount = targetApps.size();
     m_pApplicationsTableModel->setRowCount(rowCount);
 
-    for (int loop = 0; loop < rowCount; loop++)
+    for (int row = 0; row < rowCount; row++)
     {
-        const RDSTargetApplicationInfo& targetAppInfo = targetApps[loop];
+        const RDSTargetApplicationInfo& targetAppInfo = targetApps[row];
         QFileInfo fileInfo(targetAppInfo.processName);
-        SetTableModelData(fileInfo.fileName(), loop, TARGET_APPLICATION_TABLE_COLUMN_EXECUTABLE_NAME);
-
+        SetTableModelData(fileInfo.fileName(), row, TARGET_APPLICATION_TABLE_COLUMN_EXECUTABLE_NAME);
         // TODO: see if the process is running and if so, fill in the process ID here
         //SetTableModelData("-", loop, TARGET_APPLICATION_TABLE_COLUMN_PROCESS_ID);
 
@@ -182,12 +186,11 @@ void SetupTargetApplicationModel::Update()
         QModelIndex index;
         QStandardItem* pItem;
 
-        index = m_pApplicationsTableModel->index(loop, TARGET_APPLICATION_TABLE_COLUMN_APPLY_SETTINGS);
+        index = m_pApplicationsTableModel->index(row, TARGET_APPLICATION_TABLE_COLUMN_APPLY_SETTINGS);
         pItem = m_pApplicationsTableModel->itemFromIndex(index);
         pItem->setCheckState(targetAppInfo.applySettings ? Qt::Checked : Qt::Unchecked);
         pItem->setCheckable(true);
-
-        index = m_pApplicationsTableModel->index(loop, TARGET_APPLICATION_TABLE_COLUMN_ENABLE_PROFILING);
+        index = m_pApplicationsTableModel->index(row, TARGET_APPLICATION_TABLE_COLUMN_ENABLE_PROFILING);
         pItem = m_pApplicationsTableModel->itemFromIndex(index);
         pItem->setCheckState(targetAppInfo.allowProfiling ? Qt::Checked : Qt::Unchecked);
         pItem->setCheckable(true);
@@ -399,4 +402,70 @@ bool SetupTargetApplicationModel::GetExecutableNameAtRow(int rowIndex, QString& 
     }
 
     return gotExecutable;
+}
+
+//-----------------------------------------------------------------------------
+/// Determines if an executable name matches a row in the setup target application table.
+/// The check includes regular expression wildcards.
+/// \param rowIndex The row index in the table.
+/// \param executableName The name of the executable to compare against.
+/// \return true if the string matches, otherwise returns false.
+//-----------------------------------------------------------------------------
+bool SetupTargetApplicationModel::IsExecutableMatchingAtRow(int rowIndex, const QString& executableName) const
+{
+    bool executableMatches = false;
+    const QAbstractItemModel* pTargetExecutableTable = GetTableModel();
+    if (pTargetExecutableTable != nullptr)
+    {
+        if ( (rowIndex >= 0) && (rowIndex < pTargetExecutableTable->rowCount()) )
+        {
+            const QModelIndex executableNameIndex = pTargetExecutableTable->index(rowIndex, TARGET_APPLICATION_TABLE_COLUMN_EXECUTABLE_NAME);
+            const QString targetExecutableName = pTargetExecutableTable->data(executableNameIndex, Qt::DisplayRole).toString();
+
+            // Does the new process filename match our Target Executable filename?
+            QRegExp compareString(targetExecutableName, Qt::CaseSensitivity::CaseInsensitive, QRegExp::Wildcard);
+            executableMatches = compareString.exactMatch(executableName);
+        }
+    }
+
+    return executableMatches;
+}
+
+//-----------------------------------------------------------------------------
+/// Retrieve number of rows in the setup target application table.
+/// \return The row count.
+//-----------------------------------------------------------------------------
+int SetupTargetApplicationModel::GetRowCount() const
+{
+    int rows = 0;
+    const QAbstractItemModel* pTargetExecutableTable = GetTableModel();
+    if (pTargetExecutableTable != nullptr)
+    {
+        rows = pTargetExecutableTable->rowCount();
+    }
+    return rows;
+}
+
+//-----------------------------------------------------------------------------
+/// Locate a processName matching a row in the target applications setup table.
+/// The check includes regular expression wildcard matching.
+/// \return The index row if a match is found, otherwise returns -1.
+//-----------------------------------------------------------------------------
+int SetupTargetApplicationModel::FindRowForProcessName(const QString& processName)
+{
+    int matchingRow = -1;
+    const QAbstractItemModel* pTargetExecutableTable = GetTableModel();
+    if (pTargetExecutableTable != nullptr)
+    {
+        int rows = pTargetExecutableTable->rowCount();
+        for (int targetRow = 0; targetRow < rows; ++targetRow)
+        {
+            if (IsExecutableMatchingAtRow(targetRow, processName) == true)
+            {
+                matchingRow = targetRow;
+                break;
+            }
+        }
+    }
+    return matchingRow;
 }

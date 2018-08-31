@@ -24,10 +24,10 @@ using namespace DevDriver::SettingsProtocol;
 // Stylesheet for the show full description button
 const static QString s_SHOW_DESCRIPTION_CHECKBOX_STYLESHEET(
     "QCheckBox::indicator { width: 12px; height: 12px; }"
-    "QCheckBox::indicator:checked { image: url(:/images/PullDownOn_Gray.svg); }"
-    "QCheckBox::indicator:unchecked { image: url(:/images/PullDownOff_Gray.svg); }"
-    "QCheckBox::indicator:checked:hover { image: url(:/images/PullDownOn_Black.svg); }"
-    "QCheckBox::indicator:unchecked:hover { image: url(:/images/PullDownOff_Black.svg); }"
+    "QCheckBox::indicator:checked { image: url(:/assets/PullDownOn_Gray.svg); }"
+    "QCheckBox::indicator:unchecked { image: url(:/assets/PullDownOff_Gray.svg); }"
+    "QCheckBox::indicator:checked:hover { image: url(:/assets/PullDownOn_Black.svg); }"
+    "QCheckBox::indicator:unchecked:hover { image: url(:/assets/PullDownOff_Black.svg); }"
 );
 
 // Stylesheet for the restore default setting button
@@ -36,7 +36,7 @@ const static QString s_RESTORE_DEFAULT_SETTING_BUTTON_STYLESHEET(
 );
 
 const static QString s_RESTORE_DEFAULT_SETTING_TOOLTIP("Restore default value");
-const static QString s_RESTORE_DEFAULT_SETTING_ICON(":/images/third_party/ionicons/loop.svg");
+const static QString s_RESTORE_DEFAULT_SETTING_ICON(":/assets/third_party/ionicons/loop.svg");
 const static int s_EDIT_WIDGET_HEIGHT = 20;
 const static QSize s_RESTORE_DEFAULT_SETTING_BUTTON_SIZE = QSize(s_EDIT_WIDGET_HEIGHT, s_EDIT_WIDGET_HEIGHT);
 

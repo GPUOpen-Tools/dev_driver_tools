@@ -11,10 +11,10 @@
 #define STRINGIFY_VALUE(x) STRINGIFY(x)
 #define STRINGIFY(x) #x
 
-#define DEV_DRIVER_TOOLS_MAJOR_VERSION      1           ///< Major version number.
-#define DEV_DRIVER_TOOLS_MINOR_VERSION      2           ///< Minor version number.
-#define DEV_DRIVER_TOOLS_BUGFIX_NUMBER      0           ///< Bugfix number.
-#define DEV_DRIVER_TOOLS_BUILD_NUMBER       0           ///< Build number.
+#define DEV_DRIVER_TOOLS_MAJOR_VERSION 1                ///< Major version number.
+#define DEV_DRIVER_TOOLS_MINOR_VERSION 3                ///< Minor version number.
+#define DEV_DRIVER_TOOLS_BUGFIX_NUMBER 0                ///< Bugfix number.
+#define DEV_DRIVER_TOOLS_BUILD_NUMBER  0                ///< Build number.
 
 #ifdef HEADLESS
 #define DEV_DRIVER_TOOLS_BUILD_SUFFIX       "- CLI"     ///< The build suffix to apply to the product name for headess build.
@@ -22,7 +22,7 @@
 #define DEV_DRIVER_TOOLS_BUILD_SUFFIX       ""          ///< The build suffix to apply to the product name.
 #endif // HEADLESS
 
-#define DEV_DRIVER_TOOLS_BUILD_DATE_STRING  "4/10/2018" ///< Build date string.
+#define DEV_DRIVER_TOOLS_BUILD_DATE_STRING  "5/30/2018" ///< Build date string.
 
 #define DEV_DRIVER_TOOLS_VERSION_STRING     STRINGIFY_VALUE(DEV_DRIVER_TOOLS_MAJOR_VERSION) "." \
                                             STRINGIFY_VALUE(DEV_DRIVER_TOOLS_MINOR_VERSION) "." \

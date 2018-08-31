@@ -1,0 +1,21 @@
+// DevDriverTools
+
+// "P4ROOT" is passed in by the build script from Jenkins
+Define "DEVDRIVERTOOLSPATH" "[P4ROOT]"
+Define "DEVDRIVERTOOLSBUILD" "[DEVDRIVERTOOLSPATH]\build\win\VS2017"
+
+Always
+   Log "[P4ROOT]\DevDriverTools_Build.log"
+
+// Build Debug & Release 
+   BuildSln "[DEVDRIVERTOOLSBUILD]\DevDriverTools.sln" "" "Build" "Debug|x64"
+   BuildSln "[DEVDRIVERTOOLSBUILD]\DevDriverTools.sln" "" "Build" "Release|x64"
+
+// SendBuildErrors doesn't actually send an email now - Jenkins does that
+// however we still need to call this to detect if an error condition occured
+   SendBuildErrors "[EMAIL]" "DevDriverTools Build Failed"
+
+// Generate zip files
+   Define "ZIPDIR" "[P4ROOT]\DevDriverTools.[BUILD]"
+   XCopy "[DEVDRIVERTOOLSPATH]\build\win\Release" "[ZIPDIR]\"
+   Zip "[ZIPDIR].zip" "[ZIPDIR]"

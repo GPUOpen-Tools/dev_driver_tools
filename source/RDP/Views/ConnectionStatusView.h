@@ -15,12 +15,14 @@ namespace Ui {
 class ConnectionStatusView;
 }
 
+class QPushButton;
+
 /// Connection status constants
 enum ConnectionStatus
 {
-    DISCONNECTED,
-    ATTEMPT,
-    CONNECTED
+    CONNECTION_STATUS_DISCONNECTED,
+    CONNECTION_STATUS_ATTEMPT,
+    CONNECTION_STATUS_CONNECTED
 };
 
 /// A small control responsible for showing the connection status to RDS.
@@ -35,6 +37,12 @@ public:
     void SetHostConnectionString(const QString& hostConnectionString);
     void SetRemainingTime(int remainingTimeMsecs);
     void SetDisconnectButtonEnabled(bool enabled);
+
+    void OnShowLog() const;
+    void OnHideLog() const;
+
+    QPushButton* GetShowConnectionButton() const;
+    QPushButton* GetHideConnectionButton() const;
 
     ConnectionStatus GetConnectionStatus();
 

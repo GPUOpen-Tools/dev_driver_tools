@@ -25,7 +25,6 @@
 #include "../../Common/DriverToolsDefinitions.h"
 #include "../../Common/Views/DebugWindow.h"
 #include "../../DevDriverComponents/listener/listenerCore.h"
-#include "../../DevDriverComponents/inc/protocols/ddURIClient.h"
 
 using namespace DevDriver;
 
@@ -36,13 +35,11 @@ MainWindow* g_MainWindow = nullptr;
 /// \param pContext The incoming command request context.
 /// \returns The result of the handled request.
 //-----------------------------------------------------------------------------
-DevDriver::Result CommandService::HandleRequest(DevDriver::URIProtocol::URIRequestContext* pContext)
+DevDriver::Result CommandService::HandleRequest(DevDriver::IURIRequestContext* pContext)
 {
-    Q_UNUSED(pContext);
-
     DevDriver::Result result = DevDriver::Result::Error;
 
-    if (strcmp(pContext->pRequestArguments, "terminate") == 0)
+    if (strcmp(pContext->GetRequestArguments(), "terminate") == 0)
     {
         result = DevDriver::Result::Success;
 
@@ -155,7 +152,7 @@ void MainWindow::CreateTrayIcon()
     productTooltip.append(ToolUtil::GetFormattedVersionString());
     m_pTrayIcon->setToolTip(productTooltip);
 
-    QIcon* icon = new QIcon(":/images/RDS_Icon.png");
+    QIcon* icon = new QIcon(":/assets/RDS_Icon.png");
     m_pTrayIcon->setIcon(*icon);
     setWindowIcon(*icon);
     m_pTrayIcon->show();

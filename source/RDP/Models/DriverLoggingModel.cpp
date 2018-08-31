@@ -1,11 +1,12 @@
 //=============================================================================
-/// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+/// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 /// \author AMD Developer Tools Team
 /// \file
 /// \brief  The model responsible for updating the driver log messages interface.
 //=============================================================================
 
 #include <QThread>
+
 #include "DriverLoggingModel.h"
 #include "gpuopen.h"
 #include "DriverLogfileModel.h"
@@ -91,8 +92,8 @@ bool DriverLoggingModel::InitializeLogging()
 void DriverLoggingModel::StartLogReaderWorker()
 {
     m_pLogReaderWorker->moveToThread(m_pDriverLogWorkerThread);
-    connect(m_pDriverLogWorkerThread, SIGNAL(started()), m_pLogReaderWorker, SLOT(ReadIncomingDriverLogMessages()));
-    connect(m_pDriverLogWorkerThread, SIGNAL(finished()), m_pLogReaderWorker, SLOT(ThreadFinished()), Qt::DirectConnection);
+    connect(m_pDriverLogWorkerThread, &QThread::started, m_pLogReaderWorker, &DriverLogBackgroundWorker::ReadIncomingDriverLogMessages);
+    connect(m_pDriverLogWorkerThread, &QThread::finished, m_pLogReaderWorker, &DriverLogBackgroundWorker::ThreadFinished, Qt::DirectConnection);
 
     m_pDriverLogWorkerThread->start();
 }
@@ -159,3 +160,4 @@ void DriverLoggingModel::ResetLogfileModel()
         m_pLogfileModel->ClearLogfile();
     }
 }
+

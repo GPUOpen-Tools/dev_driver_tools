@@ -5,7 +5,7 @@
 /// \brief  A background worker thread responsible for processing incoming driver log messages.
 //=============================================================================
 
-#include <QCoreApplication>
+#include <QCoreApplication>// Read incoming driver log messages.
 #include "DriverLogBackgroundWorker.h"
 #include "DeveloperPanelModel.h"
 #include "DriverLogfileModel.h"
@@ -23,7 +23,7 @@ DriverLogBackgroundWorker::DriverLogBackgroundWorker()
     , m_pDriverLogfileModel(nullptr)
     , m_retrievingLogMessages(false)
 {
-    connect(this, SIGNAL(EmitStopProcessingLogMessages()), this, SLOT(StopProcessingLogMessages()));
+    connect(this, &DriverLogBackgroundWorker::EmitStopProcessingLogMessages, this, &DriverLogBackgroundWorker::StopProcessingLogMessages);
 }
 
 //-----------------------------------------------------------------------------
@@ -48,15 +48,6 @@ bool DriverLogBackgroundWorker::InitializeLogReader(LoggingClient* pLoggingClien
     if (pLoggingClient != nullptr && pLoggingClient->IsConnected())
     {
         m_pLoggingClient = pLoggingClient;
-
-#ifdef ENABLE_LOGGING_SYSTEM
-        if ((pLoggingClient->EnableLogging() == Result::Success) && (pDriverLogfileModel != nullptr))
-        {
-            m_pDriverLogfileModel = pDriverLogfileModel;
-            m_retrievingLogMessages = true;
-        }
-#endif // ENABLE_LOGGING_SYSTEM
-
     }
 
     return m_retrievingLogMessages;

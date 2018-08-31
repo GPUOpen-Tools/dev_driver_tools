@@ -33,6 +33,7 @@
 #include "gpuopen.h"
 #include "util/sharedptr.h"
 #include "util/vector.h"
+#include "util/queue.h"
 #include "util/hashMap.h"
 #include "protocols/systemProtocols.h"
 #include "protocols/ddTransferClient.h"
@@ -96,7 +97,7 @@ namespace DevDriver
                 {}
 
             // Writes numBytes bytes from pSrcBuffer into the block.
-            void Write(const uint8* pSrcBuffer, size_t numBytes);
+            void Write(const void* pSrcBuffer, size_t numBytes);
 
             // Closes the block which exposes it to external clients and prevents further writes.
             void Close();
@@ -112,6 +113,9 @@ namespace DevDriver
             const uint8* GetBlockData() const {
                 return (m_blockDataSize > 0) ? reinterpret_cast<const uint8*>(m_chunks.Data()) : nullptr;
             }
+
+            // Returns a boolean indicating whether the block has any transfers in progress.
+            bool HasPendingTransfers();
 
             // Waits for all pending transfers to complete or for the timeout to expire.
             Result WaitForPendingTransfers(uint32 timeoutInMs);
@@ -242,6 +246,9 @@ namespace DevDriver
 
             // A list of all the server blocks that are currently available to the TransferManager.
             HashMap<BlockId, SharedPointer<ServerBlock>, 16> m_registeredServerBlocks;
+            Queue<SharedPointer<ServerBlock>>                m_idleBlocks;
+
+            DD_STATIC_CONST size_t kMaxCachedIdleBlocks = 16;
         };
     } // TransferProtocol
 } // DevDriver

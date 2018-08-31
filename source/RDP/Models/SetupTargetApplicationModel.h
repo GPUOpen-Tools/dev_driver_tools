@@ -1,5 +1,5 @@
 //=============================================================================
-/// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+/// Copyright (c) 2017 - 2018 Advanced Micro Devices, Inc. All rights reserved.
 /// \author AMD Developer Tools Team
 /// \file
 /// \brief  Header for the Setup Target Application model.
@@ -14,6 +14,7 @@
 
 class QStandardItemModel;
 class QSortFilterProxyModel;
+class QStringListModel;
 
 /// An enumeration that declares the purpose of columns in the Target Applications table.
 enum TargetApplicationTableColumns
@@ -41,7 +42,7 @@ public:
     SetupTargetApplicationModel();
     ~SetupTargetApplicationModel();
 
-    QAbstractItemModel* GetTableModel();
+    QAbstractItemModel* GetTableModel() const;
     bool AddApplication(const QString& application);
     bool IsApplicationInTargetList(const QString& executableFilename) const;
     void RemoveApplication(int proxyRowIndex);
@@ -49,7 +50,11 @@ public:
     void TargetApplicationTableClicked(const QModelIndex& proxyIndex);
     QString ActivelyProfiledApplication();
     int MapToSourceModelRow(const QModelIndex& index) const;
-    bool GetExecutableNameAtRow(int index, QString& executableName) const;
+    int GetRowCount() const;
+    int FindRowForProcessName(const QString& processName);
+    bool GetExecutableNameAtRow(int rowIndex, QString& executableName) const;
+    bool GetExecutableNameAtProxyRow(int rowIndex, QString& executableName) const;
+    bool IsExecutableMatchingAtRow(int rowIndex, const QString& executableName) const;
     void ToggleProfilingForRow(int rowIndex);
 
 public slots:
@@ -60,15 +65,18 @@ signals:
     void ProfilingCheckboxClickError();
     void ProfilerInUseWarning(ProcessInfoModel& processInfo);
     void QueryProfiledTargetInfo(ProcessInfoModel& processInfo);
+    void ApplicationAdded(const QString& executableName);
+    void ApplicationRemoved(const QString& executableName);
 
 private:
     void EnableProfilingForRow(int rowIndex);
     void SetTableModelData(const QString& modelData, uint row, uint column, enum Qt::AlignmentFlag alignment = Qt::AlignLeft);
     bool isCheckBoxClickValid(QStandardItem* pItem);
 
-    QStandardItemModel*     m_pApplicationsTableModel;      ///< model associated with the target applications table
-    QSortFilterProxyModel*  m_pProxyModel;                  ///< Proxy model used to keep view row order seperate from underlying data row order
-    bool m_traceInProgress;                                 ///< trace in progress indicator
+    QStandardItemModel*     m_pApplicationsTableModel;                 ///< model associated with the target applications table
+    QSortFilterProxyModel*  m_pProxyModel;                             ///< Proxy model used to keep view row order seperate from underlying data row order
+    bool m_traceInProgress;                                            ///< trace in progress indicator
+    QSharedPointer<QStringListModel>   m_pSettingFilePathsModel;       ///< Collection of previously used paths to driver settings override files
 };
 
 #endif // _SETUP_TARGET_APPLICATION_MODEL_H_

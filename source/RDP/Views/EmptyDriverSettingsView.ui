@@ -56,7 +56,7 @@ QLabel
       <string/>
      </property>
      <property name="pixmap">
-      <pixmap resource="../Panel.qrc">:/images/EmptyDriverSettingsImage.png</pixmap>
+      <pixmap resource="../Panel.qrc">:/assets/EmptyDriverSettingsImage.png</pixmap>
      </property>
      <property name="scaledContents">
       <bool>true</bool>

@@ -11,10 +11,10 @@
 #include "../../Common/ToolUtil.h"
 #include "../../Common/DriverToolsDefinitions.h"
 
-const static QString s_CONNECTED_STATUS_IMAGE_PATH(":/images/check.png");
-const static QString s_DISCONNECTED_STATUS_IMAGE_PATH(":/images/X.png");
-const static QString s_CONNECTED_RDS_IMAGE_PATH(":/images/RDS_Icon.png");
-const static QString s_DISCONNECTED_RDS_IMAGE_PATH(":/images/RDS_Icon_Gray.png");
+const static QString s_CONNECTED_STATUS_IMAGE_PATH(":/assets/check.png");
+const static QString s_DISCONNECTED_STATUS_IMAGE_PATH(":/assets/X.png");
+const static QString s_CONNECTED_RDS_IMAGE_PATH(":/assets/RDS_Icon.png");
+const static QString s_DISCONNECTED_RDS_IMAGE_PATH(":/assets/RDS_Icon_Gray.png");
 
 //-----------------------------------------------------------------------------
 /// Constructor for the ConnectionStatusView control.
@@ -36,7 +36,7 @@ ConnectionStatusView::ConnectionStatusView(QWidget* pParent) :
     connect(ui->stopAttemptButton, &QAbstractButton::pressed, this, &ConnectionStatusView::StopPressed);
 
     // Default to disconnected status
-    SetConnectionStatus(DISCONNECTED);
+    SetConnectionStatus(CONNECTION_STATUS_DISCONNECTED);
 }
 
 //-----------------------------------------------------------------------------
@@ -101,13 +101,50 @@ void ConnectionStatusView::SetDisconnectButtonEnabled(bool enabled)
 }
 
 //-----------------------------------------------------------------------------
+/// Get the 'Show connection log' button widget
+/// \return The show connection log button
+//-----------------------------------------------------------------------------
+QPushButton* ConnectionStatusView::GetShowConnectionButton() const
+{
+    return ui->showConnectionLogButton;
+}
+
+//-----------------------------------------------------------------------------
+/// Get the 'Hide connection log' button widget
+/// \return The hide connection log button
+//-----------------------------------------------------------------------------
+QPushButton* ConnectionStatusView::GetHideConnectionButton() const
+{
+    return ui->hideConnectionLogButton;
+}
+
+//-----------------------------------------------------------------------------
+/// Update anything on this pane when the connection log needs to be shown
+//-----------------------------------------------------------------------------
+void ConnectionStatusView::OnShowLog() const
+{
+    ui->showConnectionLogButton->hide();
+    ui->hideConnectionLogButton->show();
+}
+
+//-----------------------------------------------------------------------------
+/// Update anything on this pane when the connection log needs to be hidden
+//-----------------------------------------------------------------------------
+void ConnectionStatusView::OnHideLog() const
+{
+    ui->showConnectionLogButton->show();
+    ui->hideConnectionLogButton->hide();
+}
+
+//-----------------------------------------------------------------------------
 /// Updates the view to reflect it's current connection status.
 //-----------------------------------------------------------------------------
 void ConnectionStatusView::Update()
 {
+    ui->hideConnectionLogButton->hide();
     switch (m_connectionStatus)
     {
-    case DISCONNECTED:
+    case CONNECTION_STATUS_DISCONNECTED:
         // Set disconnected state widget parameters
         ui->connectionStatusImage->setPixmap(s_DISCONNECTED_STATUS_IMAGE_PATH);
         ui->rdsHostImage->setPixmap(s_DISCONNECTED_RDS_IMAGE_PATH);
@@ -115,13 +152,14 @@ void ConnectionStatusView::Update()
 
         // Hide/show widgets for disconnected state
         ui->statusWidget->show();
+        ui->showConnectionLogButton->show();
         ui->progressWidget->hide();
         ui->disconnectButton->hide();
         ui->stopAttemptButton->hide();
         ui->attemptTimeoutText->hide();
         break;
 
-    case ATTEMPT:
+    case CONNECTION_STATUS_ATTEMPT:
         // Set connection attempt state widget parameters
         ui->rdsHostImage->setPixmap(s_DISCONNECTED_RDS_IMAGE_PATH);
         ui->connectionStatusText->setText(gs_CONNECTION_STATUS_ATTEMPT_TEXT.arg(m_hostConnectionString));
@@ -129,13 +167,14 @@ void ConnectionStatusView::Update()
 
         // Hide/show widgets for connection attempt state
         ui->statusWidget->hide();
+        ui->showConnectionLogButton->hide();
         ui->progressWidget->show();
         ui->disconnectButton->hide();
         ui->stopAttemptButton->show();
         ui->attemptTimeoutText->show();
         break;
 
-    case CONNECTED:
+    case CONNECTION_STATUS_CONNECTED:
         // Set connected state widget parameters
         ui->connectionStatusImage->setPixmap(s_CONNECTED_STATUS_IMAGE_PATH);
         ui->rdsHostImage->setPixmap(s_CONNECTED_RDS_IMAGE_PATH);
@@ -143,6 +182,7 @@ void ConnectionStatusView::Update()
 
         // Hide/show widgets for connected state
         ui->statusWidget->show();
+        ui->showConnectionLogButton->show();
         ui->progressWidget->hide();
         ui->disconnectButton->show();
         ui->stopAttemptButton->hide();

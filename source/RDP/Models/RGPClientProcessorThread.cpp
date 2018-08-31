@@ -149,7 +149,7 @@ DevDriver::Result RGPClientProcessorThread::ExecuteTraceRequest()
         m_traceContext = {};
 
         uint32 numChunks = 0;
-        requestResult = m_pRgpClient->EndTrace(&numChunks, &m_traceContext.totalTraceSizeInBytes);
+        requestResult = m_pRgpClient->EndTrace(&numChunks, &m_traceContext.totalTraceSizeInBytes, gs_DEFAULT_ENDTRACE_TIMEOUT);
 
         // Revert the clock mode to the RDP default after tracing.
         if (setClocks == Result::Success && m_pPanelModel->IsConnectedToRDS())

@@ -376,6 +376,19 @@ namespace DevDriver
             strcpy_s(pDst, dstSize, pSrc);
         }
 
+        char* Strtok(char* pDst, const char* pDelimiter, char** ppContext)
+        {
+            DD_ASSERT(pDelimiter != nullptr);
+            return strtok_s(pDst, pDelimiter, ppContext);
+        }
+
+        void Strcat(char* pDst, const char* pSrc)
+        {
+            DD_ASSERT(pDst != nullptr);
+            DD_ASSERT(pSrc != nullptr);
+            strcat_s(pDst, strlen(pDst), pSrc);
+        }
+
         void Snprintf(char* pDst, size_t dstSize, const char* format, ...)
         {
             va_list args;

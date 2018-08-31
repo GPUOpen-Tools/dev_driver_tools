@@ -1,5 +1,5 @@
 //=============================================================================
-/// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+/// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 /// \author AMD Developer Tools Team
 /// \file
 /// \brief The Developer Panel Model used to communicate with the Radeon Developer Service.
@@ -10,8 +10,11 @@
 
 #include <QObject>
 #include <QVector>
+#include <QSharedPointer>
+#include <QString>
+
+#include "ProcessInfoModel.h"
 #include "../AppSettings/ApplicationSettingsFile.h"
-#include "../Models/ProcessInfoModel.h"
 #include "../../Common/DriverToolsDefinitions.h"
 #include "../../Common/ddMemAlloc.h"
 #include "../../Common/ModelViewMapper.h"
@@ -87,7 +90,7 @@ public:
     void AddClientId(DevDriver::ClientId srcClientId);
     void AddClientInfo(DevDriver::ClientId srcClientId, const QString& processName, DevDriver::ProcessId processId, const QString& clientDescription);
     void ClientDisconnected(DevDriver::ClientId srcClientId);
-    void FilterHaltedProcess(ProcessInfoModel& processInfo);
+    void FilterHaltedProcess(const DevDriver::ClientId srcClientId, const ProcessInfoModel& processInfo);
     bool ApplyDriverSettingOverrides(const ProcessInfoModel& processInfo);
     void PopulateProcessDriverSettings(ProcessInfoModel& processInfo);
     void PopulateGlobalSettingsCache(ProcessInfoModel& processInfo);
@@ -105,10 +108,10 @@ public:
     bool HasProcessInfo(const ProcessInfoModel& processInfo);
     bool TryUpdateClientId(ProcessInfoModel& processInfo);
     DevDriver::ProcessId FindProfileEnabledProcess();
-
     ChannelContext& GetChannelContext() { return m_channelContext; }
     void RegisterProtocolModel(MainPanelModels modelType, DriverProtocolModel* pDriverModel);
     bool UnregisterModel(MainPanelModels modelType);
+    DevDriver::URIProtocol::URIClient* GetUriClient();
 
     DriverProtocolModel* GetProtocolModel(MainPanelModels modelType);
     bool IsConnectedToRDS() const { return m_connectedToRds; }
@@ -138,19 +141,19 @@ private:
     typedef std::unordered_map<uint8_t, DriverProtocolModel*> PanelModelMap;    ///< A helper used to provide a generic way to retrieve driver models.
     int GetProcessInfoModelIndexByProcessId(DevDriver::ProcessId processId) const;
 
-    PanelModelMap m_modelMap;                   ///< A map to associate a driver model type with a model instance.
-    ChannelContext m_channelContext;            ///< Structure used to store service connection information.
-    bool m_connectedToRds;                      ///< A flag used to check if there's an active connection to an RDS instance.
+    PanelModelMap m_modelMap;                                  ///< A map to associate a driver model type with a model instance.
+    ChannelContext m_channelContext;                           ///< Structure used to store service connection information.
+    bool m_connectedToRds;                                     ///< A flag used to check if there's an active connection to an RDS instance.
 
-    QThread* m_pMessageProcessorThread;                     ///< The QThread responsible for processing new DevDriver messages.
-    QThread* m_pConnectionStatusThread;                     ///< The QThread responsible for checking the connection status with RDS.
-    DriverMessageProcessorThread* m_pMessageProcessorWorker;///< The worker which processes DevDriver messages.
-    ConnectionStatusWorker* m_pConnectionStatusWorker;      ///< The worker which performs connection status checking.
-    QVector<ProcessInfoModel> m_processInfoList;            ///< A vector of info structures retrieved from each known process.
-    QVector<DevDriver::ClientId> m_knownClientIdList;       ///< A list of client Id's discovered through ping responses.
+    QThread* m_pMessageProcessorThread;                        ///< The QThread responsible for processing new DevDriver messages.
+    QThread* m_pConnectionStatusThread;                        ///< The QThread responsible for checking the connection status with RDS.
+    DriverMessageProcessorThread* m_pMessageProcessorWorker;   ///< The worker which processes DevDriver messages.
+    ConnectionStatusWorker* m_pConnectionStatusWorker;         ///< The worker which performs connection status checking.
+    QVector<ProcessInfoModel> m_processInfoList;               ///< A vector of info structures retrieved from each known process.
+    QVector<DevDriver::ClientId> m_knownClientIdList;          ///< A list of client Id's discovered through ping responses.
 
-    ApplicationSettingsModel* m_pPanelSettingsModel;        ///< The Panel's single settings model instance.
-    SetupTargetApplicationModel* m_pTargetApplicationModel; ///< Reference to the target application model.
+    ApplicationSettingsModel* m_pPanelSettingsModel;           ///< The Panel's single settings model instance.
+    SetupTargetApplicationModel* m_pTargetApplicationModel;    ///< Reference to the target application model.
 };
 
 #endif // _DEVELOPER_PANEL_MODEL_H_

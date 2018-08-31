@@ -13,7 +13,7 @@
 /// \param handler Signal handler callback function
 /// \param signum the signal ID (SIGINT, SIGHUP etc)
 //--------------------------------------------------------------
-void SignalHandler::AddHandler(__sighandler_t handler, int signum)
+void SignalHandler::AddHandler(SigHandlerFn handler, int signum)
 {
     SignalData signalData = {};
 
@@ -39,7 +39,7 @@ void SignalHandler::AddHandler(__sighandler_t handler, int signum)
 void SignalHandler::RemoveHandlers()
 {
     std::map<int, SignalData>::iterator it;
-    for (it = m_signalMap.begin(); it != m_signalMap.end(); ++it);
+    for (it = m_signalMap.begin(); it != m_signalMap.end(); ++it)
     {
         sigaction(it->first, &(it->second.old_action), nullptr);
     }

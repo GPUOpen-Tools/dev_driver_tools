@@ -1,5 +1,5 @@
 //=============================================================================
-/// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+/// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 /// \author AMD Developer Tools Team
 /// \file
 /// \brief  A system wide keyboard handler
@@ -55,7 +55,7 @@ protected:
     HotKeyDef m_hotkey;     ///< Hot key definition
 };
 
-#ifdef Q_OS_WIN
+#if defined Q_OS_WIN
 #include <Windows.h>
 
 //-----------------------------------------------------------------------------
@@ -102,7 +102,7 @@ public:
 
     //-----------------------------------------------------------------------------
     /// Is the global keyboard hook enabled? Currently always available on Windows,
-    /// only available on Linux is the Panel is run with root privileges.
+    /// only available on Linux if the Panel is run with root privileges.
     /// \return true. Always enabled on Windows.
     //-----------------------------------------------------------------------------
     bool Enabled()
@@ -203,6 +203,48 @@ private:
     }
 
     HHOOK m_handle;         ///< Handle used by the keyboard hook
+};
+
+#elif defined Q_OS_DARWIN
+// TODO: Implement me. Need to use NSEvent or something similar
+class KeyboardHookDarwinImpl : public KeyboardHookImpl
+{
+public:
+    //-----------------------------------------------------------------------------
+    /// Gets the KeyboardHookLinuxImpl instance.
+    /// \returns pointer to the KeyboardHookLinuxImpl instance.
+    //-----------------------------------------------------------------------------
+    static KeyboardHookDarwinImpl* GetInstance()
+    {
+        static KeyboardHookDarwinImpl s_impl;
+        return &s_impl;
+    }
+
+    //-----------------------------------------------------------------------------
+    /// Is the global keyboard hook enabled? Currently always available on Windows,
+    /// only available on Linux if the Panel is run with root privileges.
+    /// \return false. Not implemented on Mac
+    //-----------------------------------------------------------------------------
+    bool Enabled()
+    {
+        return false;
+    }
+
+    //-----------------------------------------------------------------------------
+    /// Connects the keyboard hook
+    /// \return false. Not implemented on Mac
+    //-----------------------------------------------------------------------------
+    bool Connect()
+    {
+        return false;
+    }
+
+    //-----------------------------------------------------------------------------
+    /// Disconnects the keyboard hook
+    //-----------------------------------------------------------------------------
+    void Disconnect()
+    {
+    }
 };
 
 #else
@@ -338,7 +380,7 @@ public:
 
     //-----------------------------------------------------------------------------
     /// Is the global keyboard hook enabled? Currently always available on Windows,
-    /// only available on Linux is the Panel is run with root privileges.
+    /// only available on Linux if the Panel is run with root privileges.
     /// \return true if enabled, false if not.
     //-----------------------------------------------------------------------------
     bool Enabled()
@@ -526,8 +568,10 @@ private:
 SystemKeyboardHook* SystemKeyboardHook::GetInstance()
 {
     static SystemKeyboardHook s_systemKeyboardHookInstance;
-#ifdef Q_OS_WIN
+#if defined Q_OS_WIN
     s_pImpl = KeyboardHookWindowsImpl::GetInstance();
+#elif defined Q_OS_DARWIN
+    s_pImpl = KeyboardHookDarwinImpl::GetInstance();
 #else
     s_pImpl = KeyboardHookLinuxImpl::GetInstance();
 #endif
@@ -536,7 +580,7 @@ SystemKeyboardHook* SystemKeyboardHook::GetInstance()
 
 //-----------------------------------------------------------------------------
 /// Is the global keyboard hook enabled? Currently always available on Windows,
-/// only available on Linux is the Panel is run with root privileges.
+/// only available on Linux if the Panel is run with root privileges.
 /// \return true if enabled, false if not.
 //-----------------------------------------------------------------------------
 bool SystemKeyboardHook::Enabled()

@@ -103,11 +103,11 @@ QCheckBox::indicator
 
 QCheckBox::indicator:checked
 {
-    image: url(:/images/checkbox_on_70x37.png);
+    image: url(:/assets/checkbox_on_70x37.png);
 }
 QCheckBox::indicator:unchecked
 {
-    image: url(:/images/checkbox_off_70x37.png);
+    image: url(:/assets/checkbox_off_70x37.png);
 }
 </string>
    </property>
@@ -313,12 +313,41 @@ QTabBar::tab:last
         </item>
        </layout>
       </widget>
+      <widget class="QWidget" name="pipelinesTab">
+       <attribute name="title">
+        <string>PAL PIPELINES</string>
+       </attribute>
+       <layout class="QHBoxLayout" name="horizontalLayout_6">
+        <property name="spacing">
+         <number>0</number>
+        </property>
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <layout class="QGridLayout" name="pipelinesTabLayoutGrid">
+          <property name="spacing">
+           <number>0</number>
+          </property>
+         </layout>
+        </item>
+       </layout>
+      </widget>
       <widget class="QWidget" name="logTab">
        <property name="enabled">
         <bool>true</bool>
        </property>
        <attribute name="title">
-        <string>LOG</string>
+        <string>DRIVER LOG</string>
        </attribute>
        <layout class="QHBoxLayout" name="horizontalLayout_5">
         <property name="spacing">

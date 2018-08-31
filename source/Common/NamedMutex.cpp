@@ -1,5 +1,5 @@
 //==============================================================================
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+/// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 /// \author AMD Developer Tools Team
 /// \file
 /// \brief  Implementation of a named mutex class. The mutex is
@@ -379,9 +379,11 @@ public:
 
         if (sem_wait(m_mutex) == 0)      // lock the mutex and check for error
         {
+#ifndef __APPLE__   // sem_getvalue() not implemented on Mac
             int value;
             sem_getvalue(m_mutex, &value);
             DD_PRINT(LogLevel::Debug, "[NamedMutex] Lock acquired. Count is %d", value);
+#endif // __APPLE__
             m_threadID = threadID;
             return true;
         }

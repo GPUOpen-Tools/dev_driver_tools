@@ -11,6 +11,8 @@
 #include <signal.h>
 #include <map>
 
+typedef void(*SigHandlerFn)(int);
+
 //--------------------------------------------------------------
 /// Class to encapsulate linux signal handlers. A handler can be
 /// added for each signal type, and all signals can be removed
@@ -24,7 +26,7 @@ public:
     SignalHandler() {}
     ~SignalHandler() {}
 
-    void AddHandler(__sighandler_t handler, int signum);
+    void AddHandler(SigHandlerFn handler, int signum);
     void RemoveHandlers();
 
 private:

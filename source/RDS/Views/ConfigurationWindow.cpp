@@ -43,7 +43,7 @@ ConfigurationWindow::ConfigurationWindow(QDialog* pParent) :
     ui->buildLabelData->setText(QString::number(DEV_DRIVER_TOOLS_BUILD_NUMBER));
     ui->buildDateLabelData->setText(DEV_DRIVER_TOOLS_BUILD_DATE_STRING);
 
-    m_pWindowIcon = new QIcon(":/images/RDS_Icon.png");
+    m_pWindowIcon = new QIcon(":/assets/RDS_Icon.png");
     if (m_pWindowIcon != nullptr)
     {
         setWindowIcon(*m_pWindowIcon);

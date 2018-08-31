@@ -42,6 +42,15 @@ DebugWindow::~DebugWindow()
 }
 
 //-----------------------------------------------------------------------------
+/// Make ths text area read only
+/// \param readOnly mark it as read only
+//-----------------------------------------------------------------------------
+void DebugWindow::SetReadOnly(bool readOnly)
+{
+    ui->plainTextEdit->setReadOnly(readOnly);
+}
+
+//-----------------------------------------------------------------------------
 /// Helper function which to automatically scroll to the bottom on new line.
 //-----------------------------------------------------------------------------
 void DebugWindow::ScrollToBottom()

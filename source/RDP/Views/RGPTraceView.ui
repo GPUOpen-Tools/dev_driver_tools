@@ -465,11 +465,11 @@
                 <property name="styleSheet">
                  <string notr="true">QCheckBox::indicator:checked
 {
-    image: url(:/images/checkbox_on_70x37.png);
+    image: url(:/assets/checkbox_on_70x37.png);
 }
 QCheckBox::indicator:unchecked
 {
-    image: url(:/images/checkbox_off_70x37.png);
+    image: url(:/assets/checkbox_off_70x37.png);
 }</string>
                 </property>
                 <property name="text">
@@ -575,11 +575,11 @@ QCheckBox::indicator:unchecked
                 <property name="styleSheet">
                  <string notr="true">QCheckBox::indicator:checked
 {
-    image: url(:/images/checkbox_on_70x37.png);
+    image: url(:/assets/checkbox_on_70x37.png);
 }
 QCheckBox::indicator:unchecked
 {
-    image: url(:/images/checkbox_off_70x37.png);
+    image: url(:/assets/checkbox_off_70x37.png);
 }</string>
                 </property>
                 <property name="text">

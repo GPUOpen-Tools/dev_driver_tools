@@ -32,6 +32,7 @@
 #include "messageChannel.h"
 #include "devDriverServer.h"
 #include "protocolServer.h"
+#include "protocols/ddSettingsService.h"
 #include "protocols/loggingServer.h"
 #include "protocols/settingsServer.h"
 #include "protocols/driverControlServer.h"
@@ -52,6 +53,7 @@ namespace DevDriver
         : m_pMsgChannel(nullptr)
         , m_allocCb(allocCb)
         , m_createInfo(createInfo)
+        , m_pSettingsService(nullptr)
     {
     }
 
@@ -140,6 +142,12 @@ namespace DevDriver
 
     void DevDriverServer::Destroy()
     {
+        if (m_pSettingsService != nullptr)
+        {
+            DD_DELETE(m_pSettingsService, m_allocCb);
+            m_pSettingsService = nullptr;
+        }
+
         if (m_pMsgChannel != nullptr)
         {
             Result result = m_pMsgChannel->Unregister();
@@ -185,6 +193,11 @@ namespace DevDriver
         return GetServer<Protocol::RGP>();
     }
 
+    SettingsURIService::SettingsService* DevDriverServer::GetSettingsService()
+    {
+        return m_pSettingsService;
+    }
+
     Result DevDriverServer::InitializeProtocols()
     {
         Result result = Result::Success;
@@ -196,6 +209,20 @@ namespace DevDriver
         if (m_createInfo.servers.settings)
         {
             result = RegisterProtocol<Protocol::Settings>();
+            if (result == Result::Success)
+            {
+                m_pSettingsService = DD_NEW(SettingsURIService::SettingsService, m_allocCb)(m_allocCb);
+                if (m_pSettingsService != nullptr)
+                {
+                    result = m_pMsgChannel->RegisterService(m_pSettingsService);
+                }
+                else
+                {
+                    // Something bad happened, we're probably out of memory
+                    result = Result::InsufficientMemory;
+                    DD_ASSERT_ALWAYS();
+                }
+            }
         }
         if (m_createInfo.servers.driverControl)
         {
@@ -358,6 +385,26 @@ namespace DevDriver
         DD_ASSERT(pProtocolServer != nullptr);
 
         pProtocolServer->Finalize();
+    }
+
+    bool DevDriverServer::ShouldShowOverlay()
+    {
+        // Note: This function should probably be marked const, but it calls IsTraceRunning which takes the RGPServer
+        // mutex to check trace state which is not a const operation.  A read/write lock might solve the problem.
+        RGPProtocol::RGPServer* pRgpServer = GetServer<Protocol::RGP>();
+#if defined(_WIN32)
+        static const char* const pRenderDocAppName = "qrenderdoc.exe";
+#else
+        static const char* const pRenderDocAppName = "qrenderdoc";
+#endif
+        char clientName[128] = {};
+        Platform::GetProcessName(&clientName[0], sizeof(clientName));
+        bool traceInProgress = ((pRgpServer != nullptr) && pRgpServer->IsTraceRunning());
+        // We always show the overlay except in two cases:
+        // 1) When an RGP trace is actively running.
+        // 2) [Temporary] When the active process is RenderDoc. This exception is temporary until a more robust
+        //      solution for disabling the overlay is implemented.
+        return ((traceInProgress == false) && (strcmp(clientName, pRenderDocAppName) != 0));
     }
 
 #if !DD_VERSION_SUPPORTS(GPUOPEN_CREATE_INFO_CLEANUP_VERSION)

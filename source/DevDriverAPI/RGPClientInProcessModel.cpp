@@ -5,6 +5,7 @@
 /// \brief  a class to provide service to initialize dev driver protocols to
 ///          capture rgp trace from within the profiled application.
 //=============================================================================
+
 #include <ctime>
 #include <string>
 #include <iostream>
@@ -16,6 +17,7 @@
 
 #include <ddTransferManager.h>
 
+#include "gpuopen.h"
 #include "../../Common/DriverToolsDefinitions.h"
 
 #include <protocols/settingsClient.h>
@@ -178,20 +180,20 @@ bool RGPClientInProcessModel::InitDriverProtocols()
     }
     DbgMsg("Listener core initialized successfully");
 
-    DevDriver::DevDriverClientCreateInfo clientCreateInfo = {};
-    clientCreateInfo.transportCreateInfo.type = DevDriver::TransportType::Local;
+    DevDriver::ClientCreateInfo clientCreateInfo = {};
+    DevDriver::AllocCb clientAllocCb = GenericAllocCb;
 
-    DevDriver::Platform::Strncpy(clientCreateInfo.transportCreateInfo.clientDescription, "RGPClientInProcess", sizeof(clientCreateInfo.transportCreateInfo.clientDescription));
+    clientCreateInfo.connectionInfo = DevDriver::kDefaultNamedPipe;
 
-    clientCreateInfo.transportCreateInfo.componentType = DevDriver::Component::Tool;
+    DevDriver::Platform::Strncpy(clientCreateInfo.clientDescription, "RGPClientInProcess", sizeof(clientCreateInfo.clientDescription));
 
-    clientCreateInfo.transportCreateInfo.createUpdateThread = true;
-    clientCreateInfo.transportCreateInfo.initialFlags = static_cast<DevDriver::StatusFlags>(DevDriver::ClientStatusFlags::DeveloperModeEnabled) |
+    clientCreateInfo.componentType = DevDriver::Component::Tool;
+
+    clientCreateInfo.createUpdateThread = true;
+    clientCreateInfo.initialFlags = static_cast<DevDriver::StatusFlags>(DevDriver::ClientStatusFlags::DeveloperModeEnabled) |
                                                         static_cast<DevDriver::StatusFlags>(DevDriver::ClientStatusFlags::HaltOnConnect);
 
-    clientCreateInfo.transportCreateInfo.allocCb = createInfo.allocCb;
-
-    m_pClient = new(std::nothrow) DevDriver::DevDriverClient(clientCreateInfo);
+    m_pClient = new(std::nothrow) DevDriver::DevDriverClient(clientAllocCb, clientCreateInfo);
     if (nullptr == m_pClient)
     {
         DbgMsg("Failed to allocate memory for client");
@@ -244,7 +246,13 @@ void RGPClientInProcessModel::GenerateProfileName(std::string& profileName)
     char timeStamp[BUFFER_SIZE];
 
     time_t t = time(nullptr);
-    tm* timePtr = localtime(&t);
+    tm time;
+    tm* timePtr = &time;
+#ifdef _WIN32
+    localtime_s(&time, &t);
+#else
+    localtime_r(&t, &time);
+#endif
     sprintf_s(timeStamp, BUFFER_SIZE, "-%04d%02d%02d-%02d%02d%02d", timePtr->tm_year + 1900, timePtr->tm_mon + 1, timePtr->tm_mday, timePtr->tm_hour, timePtr->tm_min, timePtr->tm_sec);
 
     // build the filename, consisting of exe name, timestamp and rgp extension. Rip off the '.exe' from the executable name if it exists
@@ -358,7 +366,7 @@ bool RGPClientInProcessModel::CollectRgpTrace(
         uint32 numChunks = 0;
         uint64 traceSizeInBytes = 0;
 
-        requestResult = pRgpClient->EndTrace(&numChunks, &traceSizeInBytes);
+        requestResult = pRgpClient->EndTrace(&numChunks, &traceSizeInBytes, gs_DEFAULT_ENDTRACE_TIMEOUT);
 
         // Revert the clock mode to the RDP default after tracing.
         if (setClocks == Result::Success)
@@ -757,6 +765,7 @@ void RGPWorkerThreadFunc(void* pThreadParam)
             break;
 
         default:
+            DevDriver::Platform::Sleep(10);
             break;
         }
         g_workerThreadMutex.lock();

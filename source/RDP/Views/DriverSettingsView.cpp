@@ -1,5 +1,5 @@
 //=============================================================================
-/// Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+/// Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
 /// \author AMD Developer Tools Team
 /// \file
 /// \brief  An interface used to view and alter driver settings.
@@ -242,18 +242,17 @@ void DriverSettingsView::PopulateSettingsInterface()
     if (m_pDriverSettingsModel != nullptr)
     {
         const DriverSettingsMap& settingsMap = m_pDriverSettingsModel->GetSettingsMap();
-
-        // If there are no settings, show the empty setting pane instead
-        if (settingsMap.empty())
-        {
-            m_pEmptyDriverSettingsView->show();
-            ui->populatedSettingsView->hide();
-        }
-        else
-        {
-            ui->populatedSettingsView->show();
-            m_pEmptyDriverSettingsView->hide();
-        }
+            // If there are no settings, show the empty setting pane instead
+            if (settingsMap.empty())
+            {
+                m_pEmptyDriverSettingsView->show();
+                ui->populatedSettingsView->hide();
+            }
+            else
+            {
+                ui->populatedSettingsView->show();
+                m_pEmptyDriverSettingsView->hide();
+            }
 
         // Add category items to the list
         AddCategoryListItems();

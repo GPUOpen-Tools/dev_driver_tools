@@ -66,7 +66,10 @@ SetupTargetApplicationView::SetupTargetApplicationView(DeveloperPanelModel* pPan
     // Update the model.
     m_pSetupTargetApplicationModel->Update();
     AdjustTableColumns();
-
+    QFlags<QAbstractItemView::EditTrigger> flags;
+    flags = QAbstractItemView::EditTrigger::EditKeyPressed;
+    flags |= QAbstractItemView::EditTrigger::DoubleClicked;
+    ui->TargetApplicationList->setEditTriggers(flags);
     setAcceptDrops(true);
 }
 
@@ -126,6 +129,11 @@ bool SetupTargetApplicationView::AddExecutableToList(const QString& executableFi
 
         // Enable the "Remove from list" button
         ui->removeFromListButton->setEnabled(true);
+    }
+
+    if (addedSuccessfully == true)
+    {
+        emit ApplicationAddedToList(executableFilename);
     }
 
     return addedSuccessfully;

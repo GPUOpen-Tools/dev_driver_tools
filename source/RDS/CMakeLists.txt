@@ -20,10 +20,10 @@ if(WIN32)
 endif(WIN32)
 
 IF(WIN32)
-  add_compile_options(/W4 /wd4127 /wd4201 /MP -DGPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=30 -DDD_PRINT_FUNC=LogMessage -DGPUOPEN_UWP_SUPPORT=1)
+  add_compile_options(/W4 /wd4127 /wd4201 /MP -DDD_PRINT_FUNC=LogMessage -DGPUOPEN_UWP_SUPPORT=1)
 ELSEIF(UNIX)
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG")
-  add_compile_options(-std=c++11 -D_LINUX -Wall -Wextra -Wmissing-field-initializers -Wno-unused-variable -DGPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=30 -DDD_PRINT_FUNC=LogMessage)
+  add_compile_options(-std=c++11 -D_LINUX -Wall -Wextra -Wmissing-field-initializers -Wno-unused-variable -DDD_PRINT_FUNC=LogMessage)
 ENDIF(WIN32)
 
 set (DEVDRIVERSOURCES
@@ -46,11 +46,13 @@ set (DEVDRIVERSOURCES
  "../DevDriverComponents/listener/clientmanagers/abstractClientManager.h"
  "../DevDriverComponents/listener/clientmanagers/listenerClientManager.h"
  "../DevDriverComponents/listener/clientmanagers/listenerClientManager.cpp"
+ "../DevDriverComponents/src/imported/metrohash/src/metrohash64.cpp"
  "../DevDriverComponents/src/baseProtocolClient.cpp"
  "../DevDriverComponents/src/baseProtocolServer.cpp"
  "../DevDriverComponents/src/ddClientURIService.cpp"
  "../DevDriverComponents/src/ddSocket.h"
  "../DevDriverComponents/src/ddTransferManager.cpp"
+ "../DevDriverComponents/src/ddURIRequestContext.cpp"
  "../DevDriverComponents/src/devDriverServer.cpp"
  "../DevDriverComponents/src/messageChannel.h"
  "../DevDriverComponents/src/messageChannel.inl"
@@ -60,6 +62,7 @@ set (DEVDRIVERSOURCES
  "../DevDriverComponents/src/sessionManager.h"
  "../DevDriverComponents/src/socketMsgTransport.cpp"
  "../DevDriverComponents/src/socketMsgTransport.h"
+ "../DevDriverComponents/src/protocols/ddSettingsService.cpp"
  "../DevDriverComponents/src/protocols/ddGpuCrashDumpClient.cpp"
  "../DevDriverComponents/src/protocols/ddGpuCrashDumpServer.cpp"
  "../DevDriverComponents/src/protocols/ddTransferClient.cpp"
@@ -69,6 +72,8 @@ set (DEVDRIVERSOURCES
  "../DevDriverComponents/src/protocols/loggingServer.cpp"
  "../DevDriverComponents/src/protocols/rgpServer.cpp"
  "../DevDriverComponents/src/protocols/settingsServer.cpp"
+ "../DevDriverComponents/src/util/ddTextWriter.cpp"
+ "../DevDriverComponents/src/util/ddJsonWriter.cpp"
 )
 
 set (DEVDRIVERMESSAGELIB
@@ -95,8 +100,8 @@ set( WINDOWS_DD_SOURCES
 )
 
 set( WINDOWS_SOURCES
- "../../images/RDS_Icon.ico"
- "../../images/RDS_Icon.png"
+ "../../assets/RDS_Icon.ico"
+ "../../assets/RDS_Icon.png"
  "Windows/RDS.rc"
  "Windows/resource.h"
 )

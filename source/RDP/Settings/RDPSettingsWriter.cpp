@@ -1,5 +1,5 @@
 //=============================================================================
-/// Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+/// Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
 /// \author AMD Developer Tools Team
 /// \file
 /// \brief  Implementation of RDP's XML settings writer.
@@ -60,6 +60,7 @@ void RDPSettingsWriter::WriteSettingsAndRecents()
     m_writer.writeEndElement();
 
     WriteUserClockMode();
+
 }
 
 //-----------------------------------------------------------------------------
@@ -178,11 +179,11 @@ void RDPSettingsWriter::WriteTargetApplications()
 //-----------------------------------------------------------------------------
 void RDPSettingsWriter::WriteTargetApplication(const RDSTargetApplicationInfo& applicationInfo)
 {
-    m_writer.writeTextElement("ProcessName",    applicationInfo.processName);
-    m_writer.writeTextElement("AppTitle",       applicationInfo.titleName);
-    m_writer.writeTextElement("API",            applicationInfo.apiName);
-    m_writer.writeTextElement("ApplySettings",  QString::number(applicationInfo.applySettings));
-    m_writer.writeTextElement("AllowProfiling", QString::number(applicationInfo.allowProfiling));
+    m_writer.writeTextElement("ProcessName",          applicationInfo.processName);
+    m_writer.writeTextElement("AppTitle",             applicationInfo.titleName);
+    m_writer.writeTextElement("API",                  applicationInfo.apiName);
+    m_writer.writeTextElement("ApplySettings",        QString::number(applicationInfo.applySettings));
+    m_writer.writeTextElement("AllowProfiling",       QString::number(applicationInfo.allowProfiling));
 }
 
 //-----------------------------------------------------------------------------
@@ -217,3 +218,4 @@ void RDPSettingsWriter::WriteUserClockMode()
 
     m_writer.writeTextElement("UserClockMode", clockModeString);
 }
+

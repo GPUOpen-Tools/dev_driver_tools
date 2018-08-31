@@ -1,5 +1,5 @@
 //=============================================================================
-/// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+/// Copyright (c) 2017 - 2018 Advanced Micro Devices, Inc. All rights reserved.
 /// \author AMD Developer Tools Team
 /// \file
 /// \brief  Implementation of the Application List Treeview.
@@ -137,7 +137,7 @@ void AppListHeaderView::mousePressEvent(QMouseEvent* pEvent)
 {
     // Only pass mouse events on if the first column is clicked - ignore all others
     int index = logicalIndexAt(pEvent->pos());
-    if (index == 0)
+    if (index == TargetApplicationTableColumns::TARGET_APPLICATION_TABLE_COLUMN_EXECUTABLE_NAME)
     {
         QHeaderView::mousePressEvent(pEvent);
     }

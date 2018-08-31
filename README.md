@@ -46,12 +46,19 @@ Install cmake using:
 Install chrpath using:
  sudo apt-get install chrpath
 
-Run the configure.sh script (in the build/linux directory).
+Install git:
+ sudo apt-get install git
+
+Run the prebuild.sh script (in the build/linux directory).
 
 $ ./prebuild.sh
 
-This will construct the output folder and build the necessary makefiles. To
-build the release build, use:
+This will construct the output folder and build the necessary makefiles. If you run into errors here,
+other packages may need to be installed:
+ - Python may also need to be installed if it is not already installed with the Linux distribution
+ - mesa-common-dev may be needed for OpenGL headers needed by the Qt installation
+
+To build the release build, use:
 
 $ ./build_release.sh
 

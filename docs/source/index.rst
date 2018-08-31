@@ -29,6 +29,28 @@ graphics hardware. The suite is comprised of the following software:
    Radeon Developer Panel connects to the Radeon Developer Service in
    order to collect a profile.
 
+Getting started on Windows
+==========================
+-  To collect complete profiles for DirectX 12, run the script 'AddUserToGroup.bat'
+   in the scripts folder. See :ref:`DX12-timing-ref` for more information
+
+Getting started on Linux
+========================
+
+-  After installing the latest video driver, make sure that the current user
+   is a member of the graphics group. This can be done by typing:
+   “\ **sudo usermod -a -G video $LOGNAME**\ ”
+   Where $LOGNAME is the user name. Log out and log back in again for this to
+   take effect.
+
+-  Install the vulkan shared library by typing “\ **sudo apt-get install libvulkan1**\ ”
+   or by downloading the Vulkan SDK from the `LunarG website <https://www.lunarg.com/>`_.
+
+-  Run the **scripts/EnableSetClockMode.sh** script to enable setting the GPU clock. See
+   :ref:`Linux-GPU_clocks-ref` for more information
+
+-  If you wish to capture profiles using the keyboard hotkey, see :ref:`Linux-keyboard-ref`
+
 How to profile your application
 ===============================
 
@@ -129,16 +151,6 @@ to the Profiling tab.
    **Note:** Certain anti-virus software may block the hotkey feature
    from monitoring key presses.
 
-   **Note to Linux users:** The hotkey is only available when starting
-   the panel with root privileges (ie sudo ./RadeonDeveloperPanel). Root
-   privileges are needed in order to read the keyboard device, which by
-   default is found in the path ‘/dev/input/by-path’, and is a file
-   ending with ‘event-kbd’. If this path doesn’t exist or the keyboard
-   device has a different name, copy the KeyboardDevice.txt file from
-   the docs directory to the root folder where these tools are located
-   and edit this file so it contains the full path and file name of the
-   keyboard device on your system.
-
 .. media/Profiling_2.png
   :width: 6.84228in
   :height: 5.87858in
@@ -155,6 +167,22 @@ to the Profiling tab.
 2) To open a profile file in the Radeon GPU Profiler, select the profile
    in the list and **click the “Open profile” button** or **double-click
    the selected row**.
+
+.. _Linux-keyboard-ref:   
+   
+Capturing using the keyboard on Linux
+-------------------------------------
+Some applications capture focus or run fullscreen which makes capturing
+a profile difficult. The RadeonDeveloperPanel provides a hotkey to allow
+capturing using the keyboard. Presently, this is Shift-Ctrl-C. On Linux,
+the hotkey is only available when starting the Panel with elevated privileges
+(ie sudo RadeoDeveloperPanel). Root privileges are needed in order to read
+the keyboard device, which by default is found in the path ‘/dev/input/by-path’,
+and is a file ending with ‘event-kbd’. If this path doesn’t exist or the
+keyboard device has a different name, copy the KeyboardDevice.txt file from
+the docs directory to the root folder where these tools are located and edit
+this file so it contains the full path and file name of the keyboard device
+on your system.
 
 Profiling on a remote system
 ----------------------------
@@ -274,15 +302,14 @@ profiles of the same application.
 For the Radeon GPU Profiler tool, the clock settings here are not used since the
 driver forces a profile to take place using peak clocks.
 
-The Log
-=======
+The Connection log
+==================
 
-Select the Log tab to see any logging information that is produced by
-the driver and the panel activity. The driver can output logging
-information about issues it has detected, and additional information
-about the connection and any errors encountered by RDP and the RDS are
-displayed here. Below is an example of typical output from a session
-that captured two profiles. The log can be saved and cleared using the
+Click on the "Show connection log" button from the CONNECTION tab to see any
+logging information that is produced by the the panel activity. Additional
+information about the connection and any errors encountered by RDP and the RDS are
+displayed here. Below is an example of typical output from a session that captured
+a profile. The log can be saved, cleared and copied to the clipboard using the
 buttons at the bottom.
 
 | This log is also saved in a log file located at:
@@ -366,7 +393,8 @@ Cleanup After a RadeonDeveloperServiceCLI Crash
 If the RadeonDeveloperServiceCLI executable crashes on Linux, shared
 memory may need to be cleaned up by running the RemoveSharedMemory.sh
 script located in the script folder of the RGP release kit. Run the
-script with elevated privileges using sudo.
+script with elevated privileges using sudo. If this fails to work,
+try starting the panel with elevated privileges.
 
 Windows Firewall Blocking Incoming Connections
 ----------------------------------------------
@@ -436,6 +464,8 @@ This is done by typing “\ **sudo ufw disable**\ ” in a terminal. The
 firewall can be re-enabled after capturing by typing “\ **sudo ufw
 enable**\ ”.
 
+.. _Linux-GPU_clocks-ref:
+
 Setting GPU clock modes on Linux
 --------------------------------
 
@@ -450,7 +480,19 @@ by unprivileged users. The Radeon GPU Profiler package includes the
 GPU clock mode in cases where the target application is not, or cannot,
 run as root. **Execute this script before running the Radeon Developer
 Service and target application,** and the GPU clock mode can be updated
-correctly at runtime.
+correctly at runtime. This script needs to be run each time you reboot
+your machine; the file permissions do not survive system reboots.
+
+Running the Panel with elevated privileges
+------------------------------------------
+
+As previously mentioned, the panel only needs to be run with elevated privileges
+if the keyboard shortcut is needed for capturing. On Ubuntu 18.04, a dialog box
+may pop up indicating that the RadeonDeveloperService is running in headless mode.
+This is nothing to worry about and will not affect profiling in any way; it just
+means that the root shell doesn't have access to the user interface so is running
+without one. The only downside is that there won't be a 'service' icon in the
+system tray.
 
 Radeon Developer Panel connection issues on Linux
 -------------------------------------------------
@@ -459,6 +501,8 @@ The Radeon Developer Panel may fail to start the Radeon Developer
 Service when the Connect button is clicked. If this occurs, manually
 start the Radeon Developer Service, select localhost from the the Recent
 connections list and click the Connect button again.
+
+.. _DX12-timing-ref:
 
 Missing Timing Data for DirectX 12 Applications
 -----------------------------------------------
@@ -527,8 +571,7 @@ Radeon Developer Service on the same system the communication between
 the two uses pipes, not sockets and ports, so setting the port has no
 effect. In this scenario, it is possible to set the service to listen on
 a no-default port, leave the panel on the default port, and connection
-will work fine. This is a UI bug.
-
+will work fine.
 
 Problems caused by the presence of non-AMD GPUs and non-AMD CPUs with integrated graphics
 -----------------------------------------------------------------------------------------
