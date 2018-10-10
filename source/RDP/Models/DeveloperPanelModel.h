@@ -136,7 +136,6 @@ signals:
     void ProfilerAlreadyInUse(const ProcessInfoModel& profiledProcessInfo);
     void Connected();
     void Disconnected();
-
 private:
     typedef std::unordered_map<uint8_t, DriverProtocolModel*> PanelModelMap;    ///< A helper used to provide a generic way to retrieve driver models.
     int GetProcessInfoModelIndexByProcessId(DevDriver::ProcessId processId) const;

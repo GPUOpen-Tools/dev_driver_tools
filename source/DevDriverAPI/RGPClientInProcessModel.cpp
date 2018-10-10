@@ -12,6 +12,10 @@
 #include <fstream>
 #include "RGPClientInProcessModel.h"
 
+#ifdef _WIN32
+#include "ADLGetDriverVersion.h"
+#endif
+
 #include <devDriverServer.h>
 #include <devDriverClient.h>
 
@@ -101,6 +105,9 @@ enum WorkerThreadState
     STATE_DONE,
 };
 
+// Timeout passed into EndTrace()
+static const unsigned int gs_ENDTRACE_TIMEOUT = 10000;
+
 // The global worker thread state
 static std::atomic<WorkerThreadState> g_workerState(STATE_INIT);
 
@@ -109,6 +116,7 @@ static std::mutex g_workerThreadMutex;
 
 RGPClientInProcessModel::RGPClientInProcessModel() :
     m_pClient(nullptr),
+    m_profilingEnabled(false),
     m_profileCaptured(false),
     m_finished(false),
     m_requestingShutdown(false),
@@ -162,12 +170,13 @@ void RGPClientInProcessModel::Finish()
     }
 }
 
-bool RGPClientInProcessModel::InitDriverProtocols()
+bool RGPClientInProcessModel::InitializeListener()
 {
     DevDriver::ListenerCreateInfo createInfo = {};
     const char* kListenerDescription = "Radeon Developer Service [RGPClientInProcess]";
     DevDriver::Platform::Strncpy(createInfo.description, kListenerDescription, sizeof(createInfo.description));
     createInfo.flags.enableServer = 1;
+    createInfo.flags.enableUWP    = 1;
     createInfo.serverCreateInfo.enabledProtocols.etw = true;
 
     createInfo.allocCb = GenericAllocCb;
@@ -179,7 +188,12 @@ bool RGPClientInProcessModel::InitDriverProtocols()
         return false;
     }
     DbgMsg("Listener core initialized successfully");
+    return true;
+}
 
+bool RGPClientInProcessModel::InitDriverProtocols()
+{
+    // create a client and try to connect to a listener (if one is set up in the system)
     DevDriver::ClientCreateInfo clientCreateInfo = {};
     DevDriver::AllocCb clientAllocCb = GenericAllocCb;
 
@@ -191,7 +205,7 @@ bool RGPClientInProcessModel::InitDriverProtocols()
 
     clientCreateInfo.createUpdateThread = true;
     clientCreateInfo.initialFlags = static_cast<DevDriver::StatusFlags>(DevDriver::ClientStatusFlags::DeveloperModeEnabled) |
-                                                        static_cast<DevDriver::StatusFlags>(DevDriver::ClientStatusFlags::HaltOnConnect);
+                                                        static_cast<DevDriver::StatusFlags>(DevDriver::ClientStatusFlags::DeviceHaltOnConnect);
 
     m_pClient = new(std::nothrow) DevDriver::DevDriverClient(clientAllocCb, clientCreateInfo);
     if (nullptr == m_pClient)
@@ -203,12 +217,43 @@ bool RGPClientInProcessModel::InitDriverProtocols()
     DevDriver::Result initResult = m_pClient->Initialize();
     if (DevDriver::Result::Success != initResult)
     {
-        DbgMsg("Failed to initialize client");
-        return false;
+        bool result = true;
+#ifdef _WIN32
+        unsigned int majorVersion = 0;
+        unsigned int minorVersion = 0;
+        unsigned int subminorVersion = 0;
+        result = ADLGetDriverVersion(majorVersion, minorVersion, subminorVersion);
+        if (result == true)
+        {
+            // if 18.40, then don't create a listener
+            if (majorVersion > 18 || (majorVersion == 18 && minorVersion >= 40))
+            {
+                result = false;
+            }
+        }
+#endif // _WIN32
+
+        // Failed to initialize client (there isn't an external listener), so create our own listener and retry
+        DbgMsg("Failed to initialize client (no external listener found)");
+        if (result == true && InitializeListener() == true)
+        {
+            // listener created, so try and reconnect
+            initResult = m_pClient->Initialize();
+            if (DevDriver::Result::Success != initResult)
+            {
+                DbgMsg("Failed to initialize client (no internal listener found)");
+                return false;
+            }
+        }
+        else
+        {
+            // can't create listener, so abort
+            return false;
+        }
     }
     DbgMsg("Client initialized successfully");
 
-	return true;
+    return true;
 }
 
 void RGPClientInProcessModel::DeInitDriverProtocols()
@@ -350,6 +395,7 @@ bool RGPClientInProcessModel::CollectRgpTrace(
     {
         DevDriver::Platform::Strncpy(traceInfo.parameters.endMarker, profileParameters.pEndMarker, sizeof(traceInfo.parameters.endMarker));
     }
+    traceInfo.parameters.captureMode = DevDriver::RGPProtocol::CaptureTriggerMode::Markers;
 #endif
 
     // Set the GPU clock mode before starting a trace.
@@ -366,7 +412,7 @@ bool RGPClientInProcessModel::CollectRgpTrace(
         uint32 numChunks = 0;
         uint64 traceSizeInBytes = 0;
 
-        requestResult = pRgpClient->EndTrace(&numChunks, &traceSizeInBytes, gs_DEFAULT_ENDTRACE_TIMEOUT);
+        requestResult = pRgpClient->EndTrace(&numChunks, &traceSizeInBytes, gs_ENDTRACE_TIMEOUT);
 
         // Revert the clock mode to the RDP default after tracing.
         if (setClocks == Result::Success)
@@ -509,6 +555,7 @@ bool RGPClientInProcessModel::EnableRgpProfiling(DevDriver::RGPProtocol::RGPClie
     using namespace RGPProtocol;
 
     // Make sure profiling status starts as Available
+    m_profilingEnabled = false;
     ProfilingStatus profilingStatus = ProfilingStatus::NotAvailable;
     if (pRgpClient->QueryProfilingStatus(&profilingStatus) != Result::Success)
     {
@@ -516,7 +563,7 @@ bool RGPClientInProcessModel::EnableRgpProfiling(DevDriver::RGPProtocol::RGPClie
     }
     else
     {
-        DbgMsg("Successfull to query rgp profiling status on client");
+        DbgMsg("Successful to query rgp profiling status on client");
     }
 
     if (profilingStatus != ProfilingStatus::Available)
@@ -533,13 +580,13 @@ bool RGPClientInProcessModel::EnableRgpProfiling(DevDriver::RGPProtocol::RGPClie
     if (result == Result::Success)
     {
         DbgMsg("RGP profiling enabled");
-        return true;
+        m_profilingEnabled = true;
     }
     else
     {
         DbgMsg("Failed to enable RGP profiling");
-        return false;
     }
+    return m_profilingEnabled;
 }
 
 bool RGPClientInProcessModel::ResumeDriverAndWaitForDriverInitilization(DevDriver::DriverControlProtocol::DriverControlClient* pDriverControlClient)
@@ -798,20 +845,23 @@ bool RGPClientInProcessModel::SetTriggerMarkerParams(uint64_t beginTag, uint64_t
 
 bool RGPClientInProcessModel::TriggerCapture(const char* pszCaptureFileName)
 {
-    g_workerThreadMutex.lock();
-    if (g_workerState == STATE_IDLE)
+    if (m_profilingEnabled == true)
     {
-        g_workerState = STATE_CAPTURING;
-        g_workerThreadMutex.unlock();
-        SetProfileCaptured(false);
-        m_profileName = "";
-        if (pszCaptureFileName != nullptr)
+        g_workerThreadMutex.lock();
+        if (g_workerState == STATE_IDLE)
         {
-            m_profileName = pszCaptureFileName;
+            g_workerState = STATE_CAPTURING;
+            g_workerThreadMutex.unlock();
+            SetProfileCaptured(false);
+            m_profileName = "";
+            if (pszCaptureFileName != nullptr)
+            {
+                m_profileName = pszCaptureFileName;
+            }
+            return true;
         }
-        return true;
+        g_workerThreadMutex.unlock();
     }
-    g_workerThreadMutex.unlock();
     return false;
 }
 
@@ -830,7 +880,7 @@ bool RGPClientInProcessModel::CreateWorkerThreadToResumeDriverAndCollectRgpTrace
         DbgMsg("Failed to create rgp worker thread");
         return false;
     }
-    DbgMsg("Successfull to create rgp worker thread");
+    DbgMsg("Successful to create rgp worker thread");
 
     if (!m_thread.IsJoinable())
     {

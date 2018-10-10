@@ -151,6 +151,7 @@ MainWindow::~MainWindow()
 //-----------------------------------------------------------------------------
 void MainWindow::InitializeInterfaceAndSettings()
 {
+
     // create the log view
     m_pLogView = new LogView(this);
     ui->logTabLayoutGrid->addWidget(m_pLogView);
@@ -584,6 +585,7 @@ void MainWindow::ToggleConnectedTabs(bool enabled)
     }
     else
     {
+
         ui->mainTabWidget->removeTab(TAB_ID_PROFILING);
         ui->mainTabWidget->removeTab(TAB_ID_CLOCKS);
         ui->mainTabWidget->removeTab(TAB_ID_SETTINGS);

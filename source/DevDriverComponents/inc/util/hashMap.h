@@ -321,6 +321,12 @@ namespace DevDriver
     {
         friend HashMap;
     public:
+        // Use base comparison method to implement ==
+        bool operator==(const Iterator &rhs) const
+        {
+            return Base::BaseIterator::Equals(rhs);
+        }
+
         // Use base comparison method to implement !=
         bool operator!=(const Iterator &rhs) const
         {
@@ -373,8 +379,20 @@ namespace DevDriver
         size_t NumBuckets,
         template<typename> class HashFunc,
         template<typename> class EqualFunc>
-        inline typename HashMap<Key, Value, NumBuckets, HashFunc, EqualFunc>::Iterator
+    inline typename HashMap<Key, Value, NumBuckets, HashFunc, EqualFunc>::Iterator
             begin(HashMap<Key, Value, NumBuckets, HashFunc, EqualFunc> &rhs)
+    {
+        return rhs.Begin();
+    }
+
+    // Implement begin() function for range-based for loops (const version)
+    template<typename Key,
+        typename Value,
+        size_t NumBuckets,
+        template<typename> class HashFunc,
+        template<typename> class EqualFunc>
+    inline const typename HashMap<Key, Value, NumBuckets, HashFunc, EqualFunc>::Iterator
+            begin(const HashMap<Key, Value, NumBuckets, HashFunc, EqualFunc> &rhs)
     {
         return rhs.Begin();
     }
@@ -385,7 +403,7 @@ namespace DevDriver
         size_t NumBuckets,
         template<typename> class HashFunc,
         template<typename> class EqualFunc>
-        inline constexpr typename HashMap<Key, Value, NumBuckets, HashFunc, EqualFunc>::Iterator
+    inline constexpr typename HashMap<Key, Value, NumBuckets, HashFunc, EqualFunc>::Iterator
             end(const HashMap<Key, Value, NumBuckets, HashFunc, EqualFunc> &rhs)
     {
         return rhs.End();

@@ -10,7 +10,11 @@ include_directories(AFTER)
 include_directories(../../../Common/Lib/AMD/ADL/include)
 
 IF(WIN32)
+ IF(UWP)
+  add_compile_options(/W4 /wd4127 /wd4201 /wd4714 /MP -DBUILD_DLL -DGPUOPEN_UWP_SUPPORT=1)
+ ELSE(UWP)
   add_compile_options(/W4 /wd4127 /wd4201 /wd4714 /MP -DBUILD_DLL)
+ ENDIF(UWP)
 ELSEIF(UNIX)
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG")
   add_compile_options(-std=c++11 -D_LINUX -Wall -Wextra -Wmissing-field-initializers -Wno-unused-variable)
@@ -76,6 +80,15 @@ set ( DEVDRIVERSOURCES
  "../DevDriverComponents/inc/util/sharedptr.h"
 )
 
+set (DEVDRIVERMESSAGELIB
+ ${CMAKE_SOURCE_DIR}/source/DevDriverComponents/message/lib/$(Configuration)/$(Platform)/message.lib
+)
+
+set( WINDOWS_DD_UWP_SOURCES
+ "../DevDriverComponents/listener/clientmanagers/uwpClientManager.h"
+ "../DevDriverComponents/listener/clientmanagers/uwpClientManager.cpp"
+)
+
 set( WINDOWS_DD_SOURCES
  "../DevDriverComponents/listener/transports/winPipeTransport.h"
  "../DevDriverComponents/listener/transports/winPipeTransport.cpp"
@@ -134,7 +147,11 @@ set( EXECUTABLE DevDriverAPI${EXE_PLATFORM_POSTFIX}${DEBUG_POSTFIX}${INTERNAL_PO
 # Specify output executable name. For windows, indicate this is a Windows application
 # and not a console application
 IF(WIN32)
- add_library(${EXECUTABLE} SHARED ${SOURCES} ${WINDOWS_SOURCES} ${DEVDRIVERSOURCES} ${WINDOWS_DD_SOURCES})
+ IF(UWP)
+  add_library(${EXECUTABLE} SHARED ${SOURCES} ${WINDOWS_SOURCES} ${DEVDRIVERSOURCES} ${WINDOWS_DD_SOURCES} ${WINDOWS_DD_UWP_SOURCE})
+ ELSE(UWP)
+  add_library(${EXECUTABLE} SHARED ${SOURCES} ${WINDOWS_SOURCES} ${DEVDRIVERSOURCES} ${WINDOWS_DD_SOURCES})
+ ENDIF(UWP)
  include(GenerateExportHeader)
  generate_export_header(${EXECUTABLE})
  
@@ -162,7 +179,11 @@ ENDIF(WIN32)
 
 # executable file library dependency list
 IF(WIN32)
- target_link_libraries(${EXECUTABLE} tdh.lib)
+ IF(UWP)
+  target_link_libraries(${EXECUTABLE} ${DEVDRIVERMESSAGELIB} tdh.lib)
+ ELSE(UWP)
+  target_link_libraries(${EXECUTABLE} tdh.lib)
+ ENDIF(UWP)
 ELSEIF(UNIX)
  target_link_libraries(${EXECUTABLE} pthread)
  IF(NOT CMAKE_CL_64)

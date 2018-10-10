@@ -24,7 +24,8 @@
 
 #pragma once
 
-#define GPUOPEN_INTERFACE_MAJOR_VERSION 35
+#define GPUOPEN_INTERFACE_MAJOR_VERSION 36
+
 #define GPUOPEN_INTERFACE_MINOR_VERSION 0
 
 #define GPUOPEN_INTERFACE_VERSION ((GPUOPEN_INTERFACE_MAJOR_VERSION << 16) | GPUOPEN_INTERFACE_MINOR_VERSION)
@@ -43,6 +44,8 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*| 36.0    | Added support for capturing the RGP trace on specific frame or dispatch.                                 |
+*|         | Added bitfield to control whether driver internal code objects are included in the code object database. |
 *| 35.0    | Updated Settings URI enum SettingType to avoid X11 macro name collision.                                 |
 *| 34.0    | Updated URI services to define a version number for each service.                                        |
 *| 33.0    | Abstracts URIRequestContext into an abstract interface.                                                  |
@@ -219,6 +222,15 @@ static_assert(false, "Error: unsupported compiler detected. Support is required 
 
 #define DD_SANITIZE_RESULT(x) ((x != Result::Success) ? Result::Error : x)
 
+// Include in the private section of a class declaration in order to disallow use of the copy and assignment operator
+#define DD_DISALLOW_COPY_AND_ASSIGN(_typename) \
+    _typename(const _typename&);               \
+    _typename& operator =(const _typename&);
+
+// Include in the private section of a class declaration in order to disallow use of the default constructor
+#define DD_DISALLOW_DEFAULT_CTOR(_typename)   \
+    _typename();
+
 namespace DevDriver
 {
     typedef int8_t   int8;    ///< 8-bit integer.
@@ -307,11 +319,12 @@ namespace DevDriver
     // Client status codes
     enum struct ClientStatusFlags : StatusFlags
     {
-        None                 = 0,
-        DeveloperModeEnabled = (1 << 0),
-        HaltOnConnect        = (1 << 1),
-        GpuCrashDumpsEnabled = (1 << 2),
-        PipelineDumpsEnabled = (1 << 3)
+        None                  = 0,
+        DeveloperModeEnabled  = (1 << 0),
+        DeviceHaltOnConnect   = (1 << 1),
+        GpuCrashDumpsEnabled  = (1 << 2),
+        PipelineDumpsEnabled  = (1 << 3),
+        PlatformHaltOnConnect = (1 << 4),
     };
 
     DD_CHECK_SIZE(ClientId, 2);

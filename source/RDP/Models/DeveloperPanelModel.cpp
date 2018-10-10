@@ -66,6 +66,7 @@ DeveloperPanelModel::~DeveloperPanelModel()
 
     SAFE_DELETE(m_pPanelSettingsModel);
     SAFE_DELETE(m_pTargetApplicationModel);
+
 }
 
 //-----------------------------------------------------------------------------
@@ -292,12 +293,14 @@ void DeveloperPanelModel::AddClientInfo(DevDriver::ClientId srcClientId, const Q
         // Create a ProcessInfoModel with the process info, and then update with the ClientId it's using.
         ProcessInfoModel processInfo(processName, clientDescription, processId);
         processInfo.UpdateClientId(srcClientId);
+
         RDPUtil::DbgMsg("[RDP] Updated %s ClientId to %d", processName.toStdString().c_str(), srcClientId);
 
         // Connect a DriverControlClient to the application to avoid allowing a timeout to resume it.
         DriverControlClient* pDriverControlClient = ConnectDriverControlClient(processInfo);
 
         bool wasBlacklisted = false;
+
         if (RDPSettings::Get().CheckBlacklistMatch(processName))
         {
             RDPUtil::DbgMsg("[RDP] Process %s blacklisted, no action taken", processName.toStdString().c_str());
@@ -341,7 +344,7 @@ void DeveloperPanelModel::AddClientInfo(DevDriver::ClientId srcClientId, const Q
             ResumeHaltedProcess(pDriverControlClient, processInfo);
 
             // If the process was blacklisted, don't wait for the driver to be initialized- just move on.
-            if (wasBlacklisted == false)
+            if (!wasBlacklisted)
             {
                 // Wait for the driver to be initialized inside the application.
                 WaitForDriverInitialization(pDriverControlClient, processInfo);
@@ -628,6 +631,7 @@ bool DeveloperPanelModel::ApplyDriverSettingOverrides(const ProcessInfoModel& pr
 //-----------------------------------------------------------------------------
 void DeveloperPanelModel::PopulateProcessDriverSettings(ProcessInfoModel& processInfo)
 {
+
     DriverSettingsMap driverSettings;
     GetProcessDriverSettings(processInfo, driverSettings);
 

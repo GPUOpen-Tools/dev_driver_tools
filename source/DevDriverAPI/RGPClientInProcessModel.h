@@ -62,6 +62,8 @@ private:
     void GenerateProfileName(std::string& profileName);
     void SetProfileCaptured(bool bCaptured) { m_profileCaptured = bCaptured; }
 
+    bool InitializeListener();
+
     bool ConnectProtocolClients(
         DevDriver::DevDriverClient*                             pClient,
         DevDriver::ClientId                                     clientId,
@@ -95,6 +97,7 @@ private:
     std::string                                             m_profileName;          ///< The name of the last saved profile
 
     DevDriver::ClientId                                     m_clientId;             ///< The current client Id
+    bool                                                    m_profilingEnabled;     ///< Is profiling enabled
     bool                                                    m_profileCaptured;      ///< Has a profile been captured
     bool                                                    m_finished;             ///< Has Finished() been called. Ensure it's only called once
     std::atomic<bool>                                       m_requestingShutdown;   ///< The application is requesting shutdown, so exit worker thread loops

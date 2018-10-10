@@ -338,27 +338,53 @@ namespace DevDriver
     }
 
     // =====================================================================================================================
-    // Sets the halt on connect client flag to the specified value
-    bool ListenerCore::SetHaltOnConnect(bool haltOnConnect)
+    // Sets the device halt on connect client flag to the specified value
+    bool ListenerCore::SetDeviceHaltOnConnect(bool haltOnConnect)
     {
         bool result = false;
         std::lock_guard<std::mutex> lock(m_routerMutex);
         if (m_pMsgChannel != nullptr)
         {
-            result = (m_pMsgChannel->SetStatusFlag<ClientStatusFlags::HaltOnConnect>(haltOnConnect) == Result::Success);
+            result = (m_pMsgChannel->SetStatusFlag<ClientStatusFlags::DeviceHaltOnConnect>(haltOnConnect) == Result::Success);
         }
         return result;
     }
 
     // =====================================================================================================================
-    // Returns the halt on connect client flag value
-    bool ListenerCore::GetHaltOnConnect()
+    // Sets the platform halt on connect client flag to the specified value
+    bool ListenerCore::SetPlatformHaltOnConnect(bool haltOnConnect)
     {
         bool result = false;
         std::lock_guard<std::mutex> lock(m_routerMutex);
         if (m_pMsgChannel != nullptr)
         {
-            result = m_pMsgChannel->GetStatusFlag<ClientStatusFlags::HaltOnConnect>();
+            result = (m_pMsgChannel->SetStatusFlag<ClientStatusFlags::PlatformHaltOnConnect>(haltOnConnect) == Result::Success);
+        }
+        return result;
+    }
+
+    // =====================================================================================================================
+    // Returns the device halt on connect client flag value
+    bool ListenerCore::GetDeviceHaltOnConnect()
+    {
+        bool result = false;
+        std::lock_guard<std::mutex> lock(m_routerMutex);
+        if (m_pMsgChannel != nullptr)
+        {
+            result = m_pMsgChannel->GetStatusFlag<ClientStatusFlags::DeviceHaltOnConnect>();
+        }
+        return result;
+    }
+
+    // =====================================================================================================================
+    // Returns the platform halt on connect client flag value
+    bool ListenerCore::GetPlatformHaltOnConnect()
+    {
+        bool result = false;
+        std::lock_guard<std::mutex> lock(m_routerMutex);
+        if (m_pMsgChannel != nullptr)
+        {
+            result = m_pMsgChannel->GetStatusFlag<ClientStatusFlags::PlatformHaltOnConnect>();
         }
         return result;
     }

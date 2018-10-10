@@ -119,6 +119,7 @@ namespace DevDriver
             if (tempClientId != kBroadcastClientId)
             {
                 const ClientId clientMask = ~m_clientManagerInfo.routerPrefixMask;
+                DD_UNUSED(clientMask);
                 DD_ASSERT((tempClientId & clientMask) != kBroadcastClientId);
 #if DD_VERSION_SUPPORTS(GPUOPEN_DEPRECATE_LEGACY_KMD_VERSION)
                 m_clientInfo.Insert(tempClientId);

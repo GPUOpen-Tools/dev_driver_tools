@@ -105,11 +105,17 @@ namespace DevDriver
         // Get the developer mode enabled client status flag
         bool GetDeveloperModeEnabled();
 
-        // Set the halt on connect client status flag
-        bool SetHaltOnConnect(bool haltOnConnect);
+        // Set the device halt on connect client status flag
+        bool SetDeviceHaltOnConnect(bool haltOnConnect);
 
-        // Get the halt on connect client status flag
-        bool GetHaltOnConnect();
+        // Set the platform halt on connect client status flag
+        bool SetPlatformHaltOnConnect(bool haltOnConnect);
+
+        // Get the device halt on connect client status flag
+        bool GetDeviceHaltOnConnect();
+
+        // Get the platform halt on connect client status flag
+        bool GetPlatformHaltOnConnect();
 #endif
 
         // Constructs a vector of the currently connected clients and returns it

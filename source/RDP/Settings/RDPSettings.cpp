@@ -33,7 +33,8 @@ static const char* kBlacklistedExecutables[] =
     "svchost.exe",
     "RadeonSettings.exe",
     "taskhost.exe",
-    "taskhostw.exe"
+    "taskhostw.exe",
+    "Taskmgr.exe"
 };
 
 //-----------------------------------------------------------------------------

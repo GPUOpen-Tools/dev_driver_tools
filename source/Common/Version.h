@@ -13,7 +13,7 @@
 
 #define DEV_DRIVER_TOOLS_MAJOR_VERSION 1                ///< Major version number.
 #define DEV_DRIVER_TOOLS_MINOR_VERSION 3                ///< Minor version number.
-#define DEV_DRIVER_TOOLS_BUGFIX_NUMBER 0                ///< Bugfix number.
+#define DEV_DRIVER_TOOLS_BUGFIX_NUMBER 1                ///< Bugfix number.
 #define DEV_DRIVER_TOOLS_BUILD_NUMBER  0                ///< Build number.
 
 #ifdef HEADLESS

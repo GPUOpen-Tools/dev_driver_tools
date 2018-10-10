@@ -42,7 +42,7 @@ ConnectionSettingsModel::ConnectionSettingsModel(DeveloperPanelModel* pPanelMode
 {
 
     // Initialize all client communication create info
-    m_clientCreateInfo.rdsInfo.initialFlags = static_cast<DevDriver::StatusFlags>(ClientStatusFlags::DeveloperModeEnabled) | static_cast<DevDriver::StatusFlags>(ClientStatusFlags::HaltOnConnect);
+    m_clientCreateInfo.rdsInfo.initialFlags = static_cast<DevDriver::StatusFlags>(ClientStatusFlags::DeveloperModeEnabled) | static_cast<DevDriver::StatusFlags>(ClientStatusFlags::DeviceHaltOnConnect);
 
     Platform::Strncpy(m_clientCreateInfo.rdsInfo.clientDescription, gs_PRODUCT_NAME_STRING.toStdString().c_str(), sizeof(m_clientCreateInfo.rdsInfo.clientDescription));
     m_clientCreateInfo.rdsInfo.componentType = Component::Tool;

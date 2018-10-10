@@ -59,6 +59,8 @@ namespace DevDriver
 
             void Finalize() override;
 
+            void StartDeviceInit();
+
             bool AcceptSession(const SharedPointer<ISession>& pSession) override;
             void SessionEstablished(const SharedPointer<ISession>& pSession) override;
             void UpdateSession(const SharedPointer<ISession>& pSession) override;
@@ -83,7 +85,8 @@ namespace DevDriver
         private:
             void LockData();
             void UnlockData();
-            void WaitForDriverStart(uint64 timeoutInMs);
+
+            void HandleDriverHalt(uint64 timeoutInMs);
 
             Platform::Mutex m_mutex;
             DriverStatus m_driverStatus;
@@ -94,8 +97,10 @@ namespace DevDriver
             DeviceClockCallbackInfo m_deviceClockCallbackInfo;
             Platform::Atomic m_numSessions;
             Platform::Atomic m_stepCounter;
+            bool m_initStepRequested;
 
             DD_STATIC_CONST uint32 kBroadcastIntervalInMs = 100;
+            DD_STATIC_CONST uint32 kDefaultDriverStartTimeoutMs = 1000;
         };
     }
 } // DevDriver

@@ -44,7 +44,7 @@ if [[ `uname` == "Darwin" ]]; then
     # MacOSX
     qtDir="/Qt/Qt$qtVersion/$qtVersion/clang_64"
 else
-    qtDir="$HOME/Qt$qtVersion/$qtVersion/gcc_64"
+    qtDir="$HOME/Qt/Qt$qtVersion/$qtVersion/gcc_64"
 fi
 
 # Parse command line arguments

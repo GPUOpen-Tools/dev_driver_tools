@@ -559,12 +559,6 @@ namespace DevDriver
                     }
                 }
 
-                // If the element we removed wasn't a POD type we need to explicitly invoke the destructor
-                if (!Platform::IsPod<Entry>::Value)
-                {
-                    pLastEntry->~Entry();
-                }
-
             }
             return (pFoundEntry != nullptr);
         }

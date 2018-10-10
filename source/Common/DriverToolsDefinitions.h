@@ -40,14 +40,9 @@ static const char* gs_RDS_APPLICATION_GUID      = "D0939873-BA4B-4C4E-9729-D82DE
 static const char* gs_RGP_TRACE_EXTENSION       = ".rgp";                                           ///< The extension used when saving RGP trace files.
 
 // Help for Command line options
-#ifdef WIN32
-static const char* gs_RDS_CLI_USAGE_DESCRIPTION            = " [--help] | [--port <portnumber>] | [--enableUWP]\n\n";
-#else
-static const char* gs_RDS_CLI_USAGE_DESCRIPTION = " [--help] | [--port <portnumber>]\n\n";
-#endif // WIN32
+static const char* gs_RDS_CLI_USAGE_DESCRIPTION            = " [--help] | [--port <portnumber>]\n\n";
 static const char* gs_RDS_CLI_HELP_OPTION_DESCRIPTION      = "--help               This help message.";                                                      ///< Command line help for --help
 static const char* gs_RDS_CLI_PORT_OPTION_DESCRIPTION      = "--port <portnumber>  The listener port.  Where <portnumber> is a value between 1 and 65535.";  ///< Command line help for --port
-static const char* gs_RDS_CLI_UWPENABLE_OPTION_DESCRIPTION = "--enableUWP          Enable UWP support.";                                                     ///< Command line help for --enableUWP
 
 // Default RDS connection info.
 static const char* gs_DEFAULT_HOST_ADDRESS = "0.0.0.0";         ///< The default address to listen on for incoming connections.

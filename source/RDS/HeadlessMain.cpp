@@ -84,10 +84,6 @@ int main(int argc, char* argv[])
     commandLine.SetHelpOption("--help", gs_RDS_CLI_HELP_OPTION_DESCRIPTION);
     Int16CommandlineParameter portParameter("--port", gs_RDS_CLI_PORT_OPTION_DESCRIPTION, false, gs_DEFAULT_CONNECTION_PORT);
     commandLine.AddParameter(&portParameter);
-    CommandlineParameter uwpParameter("--enableUWP", gs_RDS_CLI_UWPENABLE_OPTION_DESCRIPTION, false, true);
-#ifdef WIN32
-    commandLine.AddParameter(&uwpParameter);
-#endif
 
     bool parseSucceeded = commandLine.Parse();
     int retVal = 0;
@@ -133,7 +129,7 @@ int main(int argc, char* argv[])
     createInfo.numAddresses = 1;
 
     createInfo.flags.enableServer = true;
-    createInfo.flags.enableUWP = uwpParameter.IsParameterPresent();
+    createInfo.flags.enableUWP = true;
 
     DevDriver::AllocCb GenericAllocCb =
     {
@@ -151,16 +147,6 @@ int main(int argc, char* argv[])
     if (initResult == Result::Success)
     {
         std::string initCompleteMessage = "[RDS] Initialized successfully.Now listening for RDP connection.";
-#ifdef WIN32
-        if (uwpParameter.IsParameterPresent())
-        {
-            initCompleteMessage += " (UWP Enabled)";
-        }
-        else
-        {
-            initCompleteMessage += " (UWP Disabled)";
-        }
-#endif // WIN32
         DD_PRINT(LogLevel::Info, initCompleteMessage.c_str());
     }
     else

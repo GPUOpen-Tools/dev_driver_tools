@@ -34,7 +34,7 @@
 
 #include "gpuopen.h"
 
-#define RGP_PROTOCOL_MAJOR_VERSION 7
+#define RGP_PROTOCOL_MAJOR_VERSION 8
 #define RGP_PROTOCOL_MINOR_VERSION 0
 
 #define RGP_INTERFACE_VERSION ((RGP_INTERFACE_MAJOR_VERSION << 16) | RGP_INTERFACE_MINOR_VERSION)
@@ -45,6 +45,8 @@
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*|  8.0    | Added support for capturing the RGP trace on specific frame or dispatch                                  |
+*|         | Added bitfield to control whether driver internal code objects are included in the code object database  |
 *|  7.0    | Added support for aborting traces that are still in the pending state on the server.                     |
 *|  6.0    | Added support for trace trigger markers.                                                                 |
 *|  5.0    | Added support for allow compute presents trace parameter and removed unused clock mode parameter.        |
@@ -55,6 +57,7 @@
 ***********************************************************************************************************************
 */
 
+#define RGP_FRAME_CAPTURE_VERSION 8
 #define RGP_PENDING_ABORT_VERSION 7
 #define RGP_TRIGGER_MARKERS_VERSION 6
 #define RGP_COMPUTE_PRESENTS_VERSION 5
@@ -195,6 +198,49 @@ namespace DevDriver
 
         DD_CHECK_SIZE(TraceParametersV4, 540);
 
+        enum struct CaptureTriggerMode : uint32
+        {
+            Present = 0,
+            Markers,
+            Index,
+            Count
+        };
+
+        DD_NETWORK_STRUCT(TraceParametersV5, 4)
+        {
+            uint32 gpuMemoryLimitInMb;
+            uint32 numPreparationFrames;
+            uint32 captureStartIndex;
+            uint32 captureStopIndex;
+            CaptureTriggerMode captureMode;
+
+            union
+            {
+                struct
+                {
+                    uint32 enableInstructionTokens : 1;
+                    uint32 allowComputePresents : 1;
+                    uint32 captureDriverCodeObjects : 1;
+                    uint32 reserved : 29;
+                };
+                uint32 u32All;
+            } flags;
+
+            // Begin Tag
+            uint32 beginTagHigh;
+            uint32 beginTagLow;
+
+            // End Tag
+            uint32 endTagHigh;
+            uint32 endTagLow;
+
+            // Begin/End Marker Strings
+            char beginMarker[kMarkerStringLength];
+            char endMarker[kMarkerStringLength];
+        };
+
+        DD_CHECK_SIZE(TraceParametersV5, 552);
+
         enum struct ProfilingStatus : uint32
         {
             NotAvailable = 0,
@@ -233,6 +279,13 @@ namespace DevDriver
         };
 
         DD_CHECK_SIZE(ExecuteTraceRequestPayloadV4, 540);
+
+        DD_NETWORK_STRUCT(ExecuteTraceRequestPayloadV5, 4)
+        {
+            TraceParametersV5 parameters;
+        };
+
+        DD_CHECK_SIZE(ExecuteTraceRequestPayloadV5, 552);
 
         DD_NETWORK_STRUCT(ExecuteTraceResponsePayload, 4)
         {
@@ -289,6 +342,7 @@ namespace DevDriver
                 ExecuteTraceRequestPayloadV2        executeTraceRequestV2;
                 ExecuteTraceRequestPayloadV3        executeTraceRequestV3;
                 ExecuteTraceRequestPayloadV4        executeTraceRequestV4;
+                ExecuteTraceRequestPayloadV5        executeTraceRequestV5;
                 ExecuteTraceResponsePayload         executeTraceResponse;
                 TraceDataChunkPayload               traceDataChunk;
                 TraceDataSentinelPayload            traceDataSentinel;

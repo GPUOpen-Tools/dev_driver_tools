@@ -992,6 +992,7 @@ void RGPTraceView::OnRDSDisconnect()
     // Update view to to empty state
     m_pRGPTraceModel->ClearProfilingTargetStatus();
     UpdateTraceCollectionControls();
+
 }
 
 //-----------------------------------------------------------------------------
