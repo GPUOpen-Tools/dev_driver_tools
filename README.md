@@ -13,8 +13,8 @@ The documentation is hosted publicly at : http://devdrivertools.readthedocs.io/e
 
 To build on Windows (Visual Studio 2017):
 -----------------------------------------
-Download Qt5.9.2 for Windows (the .exe file) from:
- https://download.qt.io/official_releases/qt/5.9/5.9.2
+Download Qt5.9.6 for Windows (the .exe file) from:
+ https://download.qt.io/official_releases/qt/5.9/5.9.6
 and install it to the default location when prompted by the installer.
 
 Get and Install cmake from:
@@ -35,8 +35,8 @@ in the build/win/Release and build/win/Debug folders.
 
 To build on Linux (command line):
 ---------------------------------
-Download Qt5.9.2 for linux (the .run file) from:
- https://download.qt.io/official_releases/qt/5.9/5.9.2
+Download Qt5.9.6 for linux (the .run file) from:
+ https://download.qt.io/official_releases/qt/5.9/5.9.6
 and install it to the default location when prompted by the installer.
 
 Install cmake using:
@@ -80,6 +80,6 @@ to point to the cmake folder where the new version of Qt is installed. Simply ed
 line
         cmake ../../../.. -DCMAKE_BUILD_TYPE=$config
 to
-        cmake ../../../.. -DCMAKE_BUILD_TYPE=$config -DCMAKE_PREFIX_PATH=~/Qt5.9.2/5.9.2/gcc_64/lib/cmake/
+        cmake ../../../.. -DCMAKE_BUILD_TYPE=$config -DCMAKE_PREFIX_PATH=~/Qt5.9.6/5.9.6/gcc_64/lib/cmake/
 
-For Qt5.9.2 installed to the current users' root folder in the Qt5.9.2 folder in this example
+For Qt5.9.6 installed to the current users' root folder in the Qt5.9.6 folder in this example
