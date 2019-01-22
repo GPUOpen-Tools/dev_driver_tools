@@ -19,7 +19,7 @@ graphics hardware. The suite is comprised of the following software:
 
 -  **Radeon Developer Panel (RDP)** – A GUI application that allows the
    developer to configure driver settings and generate profiles from
-   DirectX12 and Vulkan applications.
+   DirectX12, Vulkan and OpenCL applications.
 
 -  **Radeon GPU Profiler (RGP)** – A GUI tool used to visualize and
    analyze the profile data.
@@ -33,6 +33,8 @@ Getting started on Windows
 ==========================
 -  To collect complete profiles for DirectX 12, run the script 'AddUserToGroup.bat'
    in the scripts folder. See :ref:`DX12-timing-ref` for more information
+-  You may want to blacklist certain applications so they don't show up in the
+   UI. For details, see :ref:`Blacklisting-ref`
 
 Getting started on Linux
 ========================
@@ -113,7 +115,12 @@ green to indicate that the connection was successful.
    a. Use the “…” button to browse to the executable, or manually type
       it in the executable name textbox.
 
-   b. Select an active process within the Active Applications table, and
+   b. Use the executable name textbox to enter a wildcard '*' which is used
+      as a catch-all for any target application launched. Note that Checkbox
+      options in a row which has a wildcard for the filename take precedence
+      over any other rows that may contain an exact filename match.
+
+   c. Select an active process within the Active Applications table, and
       click the “Add to targets” button. The process will need to be
       restarted in order to apply settings at application startup, and
       to enable collection of RGP profiles.
@@ -168,8 +175,113 @@ to the Profiling tab.
    in the list and **click the “Open profile” button** or **double-click
    the selected row**.
 
-.. _Linux-keyboard-ref:   
-   
+Profiling modes
+---------------
+
+.. only:: public
+
+  In addition to clicking on the **Capture profile** button or by using the
+  capture profile hotkey, a **Dispatch range** can be specified for OpenCL
+  applications. To configure the panel to capture an OpenCL Dispatch range,
+  go back to the **Connection** tab and click on the **Edit** button next
+  to the Enable profiling checkbox for the row matching the target application
+  filename. A dialog box will then open:
+
+.. only:: internal
+
+  In addition to clicking on the **Capture profile** button or by using the
+  capture profile hotkey for Windows, profiles can be captured in other ways
+  depending on the API. To configure the panel to capture profiles in other
+  modes go back to the **Connection** tab and click on the **Edit** button
+  next to the Enable profiling checkbox for the row matching the target
+  application filename.  A dialog box will then open:
+
+.. image:: media/Capture_1.png
+  :width: 4.0in
+  :height: 2.1in
+
+The API combobox is used to select which profiling option(s) are displayed
+for a supported API.  Profile settings can be configured for each API type.
+The dialog box will show the default profile options for the target
+application and API selected. The **Auto detect** API only supports the
+**Trigger mechanism** at this time. This Profile mode is the the manual method
+of profiling described using the capture button or hotkey in the previous
+sections.
+
+.. only:: internal
+
+  Graphics APIs allow for the default **Trigger mechanism** as well as the
+  ability to profile a certain frame. The frame number starts counting from
+  the time the target application was started. When selecting **Frame capture**,
+  an edit box will be shown to specify the frame number to profile.
+
+  .. image:: media/Capture_2.png
+    :width: 4.0in
+    :height: 2.1in
+
+  .. image:: media/Capture_3.png
+    :width: 4.0in
+    :height: 2.1in
+
+Select **OpenCL** for the *API* and choose **Dispatch range** for the **Profile mode**.
+Selecting this will display start and end Dispatch edit boxes. For example, the
+values 5 and 20 could be entered and the profile would consist of 15 Dispatches
+starting with the 5th Dispatch. The 20th dispatch is not included in the trace.
+
+The number of dispatches captured is limited to 50 at present to prevent the
+amount of captured data becoming too large.
+
+.. image:: media/Capture_4.png
+  :width: 4.0in
+  :height: 2.1in
+
+Once the profile mode has been selected for the target application, click the
+**OK** button to close the dlaiog. Start the target application in the normal way.
+
+.. only:: public
+
+  If **Dispatch range** has been specified, the profile will be carried out
+  automatically according to the parameters specified. Therefore, on the
+  **Profiler** tab, the **Capture profile** button will be grayed out. Once
+  the profile has been taken, it will be added to the **Recently collected
+  profiles** list.
+
+.. only:: internal
+
+  If **Frame capture** or **Dispatch range** have been specified, the
+  profile will be carried out automatically according to the parameters
+  specified. Therefore, on the **Profiler** tab, the **Capture profile** button
+  will be grayed out. Once the profile has been taken, it will be added to the
+  **Recently collected profiles** list.
+
+.. only:: public
+
+  RDP will detect the API type of a running target application and automatically
+  apply the appropriate profile options.  If for example, an **OpenCL** application
+  is started, the profile options entered in the Profile configuration dialog box
+  for the **OpenCL** API will be applied. If a graphics application is started,
+  the **Trigger mechanism** profile mode will be applied.
+
+.. only:: internal
+
+  RDP will detect the API type of a running target application and automatically
+  apply the appropriate profile options.  If for example, an **OpenCL** application
+  is started, the profile options entered in the Profile configuration dialog box
+  for the **OpenCL** API will be applied. If a graphics application is started,
+  the options for either Vulkan or DirectX will be applied, depending on the target
+  application's API.
+
+Be aware that a row in the target applications table with a wildcard will take
+precedence over an exactly matching filename.  The profile configuration options
+for the wildcard row will be applied in this case.
+
+**Note:** Only recent drivers support these new profile modes. If the driver
+doesn't support a particular profile mode, a warning message will be displayed
+and profiling for that run of the application will be disabled. The default
+**Trigger mechanism** profile mode should always work.
+
+.. _Linux-keyboard-ref:
+
 Capturing using the keyboard on Linux
 -------------------------------------
 Some applications capture focus or run fullscreen which makes capturing
@@ -279,6 +391,24 @@ the settings do not effect a currently running application.**
 4) Profile your application as described in the “\ **How to profile your
    application**\ ” section above.
 
+.. _Blacklisting-ref:
+
+Blacklisting applications
+=========================
+Sometimes it is useful to completely exclude certain background applications
+from being recognized and displayed in the Radeon Developer Panel. For example,
+Windows 10 has applications that use DirectX 12 and when they are started can
+show up in the list of target applications. When first running the panel, a
+default list of blacklisted applications is generated and written to
+**ProcessBlacklist.txt** in the folder:
+**C:\\Users\\<user_name>\\AppData\\Roaming\\RadeonDeveloperDriver**. This file can be
+updated to include other applications that are to be ignored. If the file is
+removed or isn't present, a file containing a default list of blacklisted
+applications will be added. A current list of blacklisted applications can be
+found from the open source DevDriverTools on github
+(https://github.com/GPUOpen-Tools/DevDriverTools) near the top of the file:
+source\RDP\Settings\RDPSettings.cpp
+
 Using the Clock settings
 ========================
 
@@ -376,8 +506,6 @@ RadeonDeveloperServiceCLI:
 1) **-- port <port number>** *Overrides the default listener port used
    by the service (27300 is the default).*
 
-2) **-- enableUWP** *Enables UWP support (disabled by default).*
-
 **Please note** that the service will need to be explicitly started
 before starting the Radeon Developer Panel. If the service isn’t
 running, the Radeon Developer Panel will automatically start the UI
@@ -454,7 +582,7 @@ a. Alternatively, disable the Windows Firewall entirely will also allow
    with the Radeon Developer Service, which may or may not be on the same
    machine, and a connection needs to be made between the two (normally via a
    socket).
- 
+
 Disabling Linux Firewall
 ------------------------
 
@@ -486,13 +614,13 @@ your machine; the file permissions do not survive system reboots.
 Running the Panel with elevated privileges
 ------------------------------------------
 
-As previously mentioned, the panel only needs to be run with elevated privileges
-if the keyboard shortcut is needed for capturing. On Ubuntu 18.04, a dialog box
-may pop up indicating that the RadeonDeveloperService is running in headless mode.
-This is nothing to worry about and will not affect profiling in any way; it just
-means that the root shell doesn't have access to the user interface so is running
-without one. The only downside is that there won't be a 'service' icon in the
-system tray.
+As previously mentioned, the panel only needs to be run with elevated
+privileges if the keyboard shortcut is needed for capturing. On Ubuntu 18.04,
+a dialog box may pop up indicating that the RadeonDeveloperService is running
+in headless mode. This is nothing to worry about and will not affect profiling
+in any way; it just means that the root shell doesn't have access to the system
+tray so is running without a user interface. The only downside is that there
+won't be a 'service' icon available on the desktop.
 
 Radeon Developer Panel connection issues on Linux
 -------------------------------------------------
