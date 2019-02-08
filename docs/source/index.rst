@@ -29,6 +29,8 @@ graphics hardware. The suite is comprised of the following software:
    Radeon Developer Panel connects to the Radeon Developer Service in
    order to collect a profile.
 
+   **Note:** By default, the driver allocates a maximum of 128 MB video memory per Shader Engine to capture RGP profiles.
+
 Getting started on Windows
 ==========================
 -  To collect complete profiles for DirectX 12, run the script 'AddUserToGroup.bat'
