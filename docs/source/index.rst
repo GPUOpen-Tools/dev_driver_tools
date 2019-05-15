@@ -29,7 +29,8 @@ graphics hardware. The suite is comprised of the following software:
    Radeon Developer Panel connects to the Radeon Developer Service in
    order to collect a profile.
 
-   **Note:** By default, the driver allocates a maximum of 128 MB video memory per Shader Engine to capture RGP profiles.
+   **Note:** By default, the driver allocates a maximum of 128 MB video
+   memory per Shader Engine to capture RGP profiles.
 
 Getting started on Windows
 ==========================
@@ -70,8 +71,6 @@ application.
    (see below).
 
 .. image:: media/Connection_1.png
-  :width: 6.96793in
-  :height: 5.98653in
 ..
 
    The UI has three main elements:
@@ -107,49 +106,161 @@ green to indicate that the connection was successful.
     start). If you see this message try manually starting the
     “RadeonDeveloperService.exe” and connect again.
 
-.. image:: media/Connection_2.png
-  :width: 6.56902in
-  :height: 5.64381in
+Target application configuration
+--------------------------------
 
-1) **Select the executable you want to profile** using either of the
-   following methods:
+  Once a connection to RDS has been established, the Connection options
+  are replaced with the Setup target application view.  This view allows
+  target applications to be configured for profiling and other diagnostic
+  operations.  RDP provides two modes for configuring target applications:
 
-   a. Use the “…” button to browse to the executable, or manually type
-      it in the executable name textbox.
+- **Global mode (basic)** – RDP detects and configures every graphics or
+  compute based application that is launched.  This is the default mode when
+  RDP is started.
 
-   b. Use the executable name textbox to enter a wildcard '*' which is used
-      as a catch-all for any target application launched. Note that Checkbox
-      options in a row which has a wildcard for the filename take precedence
-      over any other rows that may contain an exact filename match.
+- **Advanced mode** - Specific configurations can be applied to individual
+  target applications or groups of target applications when they are launched.
 
-   c. Select an active process within the Active Applications table, and
-      click the “Add to targets” button. The process will need to be
-      restarted in order to apply settings at application startup, and
-      to enable collection of RGP profiles.
+  Clicking the UI toggle switch below the **Setup target application** heading
+  selects **Global** or **Advanced mode**.
 
-2) Click the “Add to list” button to add the new executable to the list
-   of processes that will start in Developer Mode.
+  Shown below is the user interface for the Global mode:
 
-3) The “Enable profiling” check box should be checked automatically for
-   the application you just added to the list.
+  .. image:: media/Target_apps_1.png
 
-4) **Start your application.**
+  Before starting your application, make adjustments to the target application
+  configuration settings.  The Enable profiling setting is enabled by default.
+  Apply settings is disabled by default.  In this mode, RDP will detect any target
+  application when it is launched and switch to the Profiling tab if profiling
+  is enabled.
 
-   The driver will render an overlay on top of the application’s render
-   window if all is working correctly. The overlay will indicate if
-   Profiling is enabled for the application, and will display the Client
-   Id that RDP uses to communicate with the process.
+Advanced Target application configuration
+-----------------------------------------
+
+Users requiring more control over how target applications are configured can
+switch to the Advanced mode.  In this mode, the user can apply configurations
+for individual applications, groups of applications or a specific API used by
+an application (DirectX, Vulkan or OpenCL).
+
+Below is the Target application configuration Advanced mode:
+
+
+.. image:: media/Target_apps_2.png
+
+
+The following methods can be used to add entries to the target application
+configuration table:
+
+a. Use the “…” button to browse to the executable, or manually type
+it in the executable name textbox.
+
+b. Use the executable name textbox to enter an asterisk '*' which is used
+as a catch-all for any target application launched.
+
+c. Select an active process within the Active Applications table, and
+click the “Add to targets” button. The process will need to be
+restarted in order to apply settings at application startup, and
+to enable collection of RGP profiles.
+
+Each row in the Target application configuration table contains configuration
+options applied to a target application or multiple applications.  The row
+selected by RDP when a target application is launched is determined by the
+row's preference (the top row is the highest preference) and three columns
+in the table:
+
+1) **Process name filter column** - This is a filespec that must match the target
+application's process name.  Partial filenames, asterisks and exact
+matching names are all considered while matching. For example, the following Process
+name filter strings will match a target application named "sample-release.exe"
+
+- ``*``
+- ``*.exe``
+- ``sample*.exe``
+- ``*-release``
+- ``sample-release.exe``
+
+On Linux, the matching is case sensitive.  On Windows case is ignored.
+
+2) **API filter column** - RDP detects the API of driver clients initiated
+when a target application is launched.  The row in the target application
+configuration table is skipped if the API type of the application doesn't
+match the API filter.  Four modes of API filtering are provided: Include
+DirectX12, Include Vulkan, Include OpenCL or Include all (the default).
+Setting an API filter can be useful when an application contains more than
+one client with different API types.  RDP can be configured to filter out
+those clients with APIs which aren’t of interest.  When used in conjunction
+with an asterisk for process name filters, multiple rows can each have
+different API filter (one row handling all DirectX applications and one row
+handling all Vulkan applications, for example).
+
+3) **Enable column** - An entire row can be disabled if it isn't currently
+needed, but may be needed in the future.  The row will be excluded when RDP
+attempts to find a match for a target application that is launched.  When a
+row is disabled, the text is shaded light gray.  Click the toggle switches in
+the row's Enable columns to enable or disable that entry.
+
+In Advanced mode, having rows with duplicate filter options is supported (i.e.
+the same Process filter name and same API filter selection). Multiple rows can
+also have profiling enabled. This allows the user to have multiple sets of
+configurations in the table for a target application or group of target
+applications that can be easily enabled or disabled. Raising or lowering the
+row in the list can also be used to control which one is chosen.  When a
+target application is launched, RDP scans the list from top to bottom until
+an enabled row matching the process name filter (exact, partial or asterisk)
+and API filter is found. The screenshot below illustrates which row will be
+used for configuration if, for example, a Vulkan application called
+game-debug.exe is launched:
+
+- Row 1 is not matched because it is disabled
+
+- Row 2 is not matched because the process name is different
+
+- Row 3 is not matched because the API is different
+
+- Row 4 matches partial process name with asterisk wildcard,
+  API type and the row is enabled
+
+- Rows 5 and 6 match, but are lower in the list than the first match
+
+.. image:: media/Target_apps_matching_1.png
+
+
+When advanced mode is enabled, the **Find in targets** button can be used
+to identify which row in the target application configuration table will be
+used by RDP when an application is launched. Select a previously run
+application from the Active application table then click the **Find in targets**
+button. The row in the Target application configuration table that RDP will use
+when the application is launched again will be selected. If no match is found,
+all rows will be deselected.
+
+The row used is also automatically selected when the target application is
+launched.
+
+The order of rows in the Target application configuration table can be
+adjusted using the up and down arrow icons in the columns to the right.
+Clicking the up or down arrow moves the row up or down by one row.  Holding
+the control key while clicking the up or down arrow moves the row to the top
+or bottom of the list. Alternatively, right clicking on a row will displays
+a context menu with options to reorder rows.
+
+Clicking on the notes icon opens a notepad dialog box allowing the user to
+enter a brief description of the configuration details for the row.  Hovering
+over the notes icon with the mouse will display a tooltip with the description
+entered.
+
+**Start your application.**
+
+The driver will render an overlay on top of the application’s render
+window if all is working correctly. The overlay will indicate if
+Profiling is enabled for the application, and will display the Client
+Id that RDP uses to communicate with the process.
 
 .. image:: media/Application_1.png
-  :width: 6.20000in
-  :height: 1.61458in
 
 The panel will detect when your application has started, and will switch
 to the Profiling tab.
 
 .. image:: media/Profiling_1.png
-  :width: 6.80562in
-  :height: 5.84708in
 
 1) **Click the “Capture profile” button** or press the **Ctrl + Shift +
    C** hotkey to generate an RGP profile. The hotkey can be useful when
@@ -160,9 +271,7 @@ to the Profiling tab.
    **Note:** Certain anti-virus software may block the hotkey feature
    from monitoring key presses.
 
-.. media/Profiling_2.png
-  :width: 6.84228in
-  :height: 5.87858in
+.. image:: media/Profiling_2.png
 
 1) Right-clicking on a row in the list of recent profiles will open a
    context menu for the selected file. The context menu allows you to
@@ -170,117 +279,12 @@ to the Profiling tab.
    rename or delete the file.
 
 .. image:: media/Profiling_3.png
-  :width: 6.14488in
-  :height: 1.92639in
 
 2) To open a profile file in the Radeon GPU Profiler, select the profile
    in the list and **click the “Open profile” button** or **double-click
    the selected row**.
 
-Profiling modes
----------------
-
-.. only:: public
-
-  In addition to clicking on the **Capture profile** button or by using the
-  capture profile hotkey, a **Dispatch range** can be specified for OpenCL
-  applications. To configure the panel to capture an OpenCL Dispatch range,
-  go back to the **Connection** tab and click on the **Edit** button next
-  to the Enable profiling checkbox for the row matching the target application
-  filename. A dialog box will then open:
-
-.. only:: internal
-
-  In addition to clicking on the **Capture profile** button or by using the
-  capture profile hotkey for Windows, profiles can be captured in other ways
-  depending on the API. To configure the panel to capture profiles in other
-  modes go back to the **Connection** tab and click on the **Edit** button
-  next to the Enable profiling checkbox for the row matching the target
-  application filename.  A dialog box will then open:
-
-.. image:: media/Capture_1.png
-  :width: 4.0in
-  :height: 2.1in
-
-The API combobox is used to select which profiling option(s) are displayed
-for a supported API.  Profile settings can be configured for each API type.
-The dialog box will show the default profile options for the target
-application and API selected. The **Auto detect** API only supports the
-**Trigger mechanism** at this time. This Profile mode is the the manual method
-of profiling described using the capture button or hotkey in the previous
-sections.
-
-.. only:: internal
-
-  Graphics APIs allow for the default **Trigger mechanism** as well as the
-  ability to profile a certain frame. The frame number starts counting from
-  the time the target application was started. When selecting **Frame capture**,
-  an edit box will be shown to specify the frame number to profile.
-
-  .. image:: media/Capture_2.png
-    :width: 4.0in
-    :height: 2.1in
-
-  .. image:: media/Capture_3.png
-    :width: 4.0in
-    :height: 2.1in
-
-Select **OpenCL** for the *API* and choose **Dispatch range** for the **Profile mode**.
-Selecting this will display start and end Dispatch edit boxes. For example, the
-values 5 and 20 could be entered and the profile would consist of 15 Dispatches
-starting with the 5th Dispatch. The 20th dispatch is not included in the trace.
-
-The number of dispatches captured is limited to 50 at present to prevent the
-amount of captured data becoming too large.
-
-.. image:: media/Capture_4.png
-  :width: 4.0in
-  :height: 2.1in
-
-Once the profile mode has been selected for the target application, click the
-**OK** button to close the dlaiog. Start the target application in the normal way.
-
-.. only:: public
-
-  If **Dispatch range** has been specified, the profile will be carried out
-  automatically according to the parameters specified. Therefore, on the
-  **Profiler** tab, the **Capture profile** button will be grayed out. Once
-  the profile has been taken, it will be added to the **Recently collected
-  profiles** list.
-
-.. only:: internal
-
-  If **Frame capture** or **Dispatch range** have been specified, the
-  profile will be carried out automatically according to the parameters
-  specified. Therefore, on the **Profiler** tab, the **Capture profile** button
-  will be grayed out. Once the profile has been taken, it will be added to the
-  **Recently collected profiles** list.
-
-.. only:: public
-
-  RDP will detect the API type of a running target application and automatically
-  apply the appropriate profile options.  If for example, an **OpenCL** application
-  is started, the profile options entered in the Profile configuration dialog box
-  for the **OpenCL** API will be applied. If a graphics application is started,
-  the **Trigger mechanism** profile mode will be applied.
-
-.. only:: internal
-
-  RDP will detect the API type of a running target application and automatically
-  apply the appropriate profile options.  If for example, an **OpenCL** application
-  is started, the profile options entered in the Profile configuration dialog box
-  for the **OpenCL** API will be applied. If a graphics application is started,
-  the options for either Vulkan or DirectX will be applied, depending on the target
-  application's API.
-
-Be aware that a row in the target applications table with a wildcard will take
-precedence over an exactly matching filename.  The profile configuration options
-for the wildcard row will be applied in this case.
-
-**Note:** Only recent drivers support these new profile modes. If the driver
-doesn't support a particular profile mode, a warning message will be displayed
-and profiling for that run of the application will be disabled. The default
-**Trigger mechanism** profile mode should always work.
+.. include:: ProfilingModes.rst
 
 .. _Linux-keyboard-ref:
 
@@ -333,70 +337,15 @@ remote Radeon Developer Service:
    successful.
 
 .. image:: media/Connection_3.png
-  :width: 8.19868in
-  :height: 7.04393in
 
 5) **Go to step 3** in **“**\ Profiling on a local system” above and
    continue.
-
-How to use the Driver Settings
-==============================
-
-**NOTE:** Currently, the driver settings are only implemented for
-DirectX12. Vulkan driver settings will be available soon.
-
-The Radeon developer Panel (RDP) allows the developer to modify driver
-settings to experiment with features that may affect performance and
-quality. When you run RDP for the first time the driver settings are
-empty in the tool and you will need to run your application with the
-panel once to retrieve the driver settings. This is a one-time setup
-process.
-
-**The important thing to remember is that when you change settings they
-will only be applied the next time you start the application. Changes to
-the settings do not effect a currently running application.**
-
-1) To get started with settings **configure your connection, connect,
-   and setup your application** as shown below.
-
-.. image:: media/Connection_2.png
-  :width: 7.78403in
-  :height: 6.68750in
-
-2) **Start your application** and let it run for a short while (few
-   seconds) then terminate the process. This will populate the driver
-   settings in the tool.
-
-3) **Click on the Settings tab**
-
-4) Currently, there are two categories of settings (Debug and General),
-   and there are only 4 settings in total. Many more will be made
-   available soon. The General settings are shown below. Click on the
-   small arrow to the right of the setting name to see the possible
-   values and descriptions. The “Default All” button will reset the
-   values back to the original driver settings. Settings can also be
-   exported and imported.
-
-.. image:: media/Settings_1.png
-  :width: 7.51519in
-  :height: 6.45671in
-
-1) Make the changes you require to the settings and then click on the
-   Connection tab.
-
-2) Make sure you have selected the “Apply settings” checkbox on the
-   application you wish to change the settings for.
-
-3) Start your application, the settings are applied by the panel as your
-   application starts.
-
-4) Profile your application as described in the “\ **How to profile your
-   application**\ ” section above.
 
 .. _Blacklisting-ref:
 
 Blacklisting applications
 =========================
+
 Sometimes it is useful to completely exclude certain background applications
 from being recognized and displayed in the Radeon Developer Panel. For example,
 Windows 10 has applications that use DirectX 12 and when they are started can
@@ -418,8 +367,6 @@ The Radeon developer Panel (RDP) allows the developer to select from a
 number of clock modes.
 
 .. image:: media/Clocks_1.png
-  :width: 7.51519in
-  :height: 6.45671in
 
 Normal clock mode will run the GPU as it would normally run your
 application. To ensure that the GPU runs within its designed power and
@@ -451,8 +398,6 @@ buttons at the bottom.
 | "~/.RadeonDeveloperDriver/RDPLogFile.txt"
 
 .. image:: media/Log_1.png
-  :width: 7.83588in
-  :height: 6.73223in
 
 The Radeon Developer Service
 ============================
@@ -473,8 +418,6 @@ configuration window, or right-click on the system tray icon and select
 ‘configure’ from the context menu.
 
 .. image:: media/RDS_1.png
-  :width: 3.55258in
-  :height: 2.76080in
 
 -  **Listen port** – The port that the Radeon Developer Service uses to
    listen for incoming connections from a remote Radeon Developer Panel.
@@ -556,8 +499,6 @@ Windows Firewall Blocking Incoming Connections
       configuration, and click “Allow access”.
 
 .. image:: media/Firewall_1.png
-  :width: 5.48484in
-  :height: 4.34000in
 
 a. If “Cancel” was previously clicked in the above step during the first
    run, the exception for RDS can still be enabled by allowing it within
@@ -566,12 +507,8 @@ a. If “Cancel” was previously clicked in the above step during the first
    RadeonDeveloperService.exe entry is checked:
 
 .. image:: media/Firewall_2.png
-  :width: 5.49000in
-  :height: 3.72728in
 
 .. image:: media/Firewall_3.png
-  :width: 5.49000in
-  :height: 3.72728in
 
 a. Alternatively, disable the Windows Firewall entirely will also allow
    RDS to be connected to.
@@ -649,8 +586,6 @@ administrator (Right click on file and select “Run as Administrator”).
 The script’s output is shown below:
 
 .. image:: media/Bat_1.png
-  :width: 7.99000in
-  :height: 2.66000in
 
 Alternatively, to manually add the active user to the proper group,
 follow these steps:
@@ -661,8 +596,6 @@ follow these steps:
    a. **Type** "**lusrmgr.msc**" into the Run window, and **click OK**.
 
 .. image:: media/Run_1.png
-  :width: 4.15000in
-  :height: 2.14000in
 
 2) Within the "Local Users and Groups" configuration window that opens,
    **select the Groups node**.
@@ -671,23 +604,17 @@ follow these steps:
       Properties**.
 
 .. image:: media/Users_1.png
-  :width: 9.81000in
-  :height: 5.55000in
 
 1) To add the active user to the group, **click the Add... button**. (If
    the active user appears within this list, the account is already
    configured properly.)
 
 .. image:: media/Add_User_1.png
-  :width: 4.87912in
-  :height: 5.55000in
 
 2) **Type the active user's account name** into the Select Users,
    Computers, Service Accounts, or Groups dialog, and **click OK**.
 
 .. image:: media/Select_User_1.png
-  :width: 4.87912in
-  :height: 2.68458in
 
 3) When the user has been added to the group, **restart the machine**
    and log back in. RDS should now be configured to collect full timing
